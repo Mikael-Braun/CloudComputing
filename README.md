@@ -203,3 +203,9 @@ Cloud-Computing/
     │   └── workflows/
     └── docs/
 ```
+## Authors 
+
+Gustavo Silva 
+Rubens Dias 
+Pedro Teixeira 
+Mikael Braun
