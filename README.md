@@ -205,7 +205,7 @@ Cloud-Computing/
 ```
 ## Authors 
 
-Gustavo Silva 
-Rubens Dias 
-Pedro Teixeira 
-Mikael Braun
+* Gustavo Silva 
+* Rubens Dias 
+* Pedro Teixeira 
+* Mikael Braun
