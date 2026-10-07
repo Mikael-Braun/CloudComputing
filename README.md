@@ -1,6 +1,6 @@
 # ☁️ Cloud Computing
 
-> Academic work developed for the **Cloud Computing** course of the Master's Degree in Informatics Engineering at **ISLA Gaia**. teste
+> Academic work developed for the **Cloud Computing** course of the Master's Degree in Informatics Engineering at **ISLA Gaia**.
 
 ---
 
