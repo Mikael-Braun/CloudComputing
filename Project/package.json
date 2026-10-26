@@ -1,0 +1,15 @@
+{
+  "name": "robotaxi-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "firebase emulators:exec --only firestore --project demo-robotaxi-test \"node --test tests/rules.test.js\"",
+    "serve": "firebase emulators:start --only auth,firestore,hosting --project demo-robotaxi",
+    "seed": "node tests/seed.js"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
+    "firebase": "^13.1.0",
+    "firebase-tools": "^15.34.1"
+  }
+}

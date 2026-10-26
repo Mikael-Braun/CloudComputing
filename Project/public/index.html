@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RoboTaxi App</title>
+  <style>
+    body { font-family: sans-serif; max-width: 1000px; margin: 20px auto; padding: 0 16px; }
+    input, select, button { padding: 8px; margin: 4px 0; box-sizing: border-box; }
+    #auth-container input, #auth-container button { width: 100%; }
+    #auth-container { max-width: 400px; margin: 0 auto; }
+    button { background-color: #0284c7; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
+    button.danger { background-color: #dc2626; }
+    table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+    th, td { border: 1px solid #ccc; padding: 4px 6px; font-size: 13px; text-align: left; }
+    .grid-wrap { overflow-x: auto; }
+    .grid td { text-align: center; min-width: 38px; }
+    .busy { background: #fecaca; }
+    .mine { background: #bbf7d0; }
+    .off { background: #e5e7eb; }
+    .hidden { display: none; }
+    .error { color: #dc2626; }
+    fieldset { border: 1px solid #ccc; border-radius: 8px; margin: 12px 0; min-width: 0; }
+  </style>
+</head>
+<body>
+  <h2>RoboTaxi App</h2>
+
+  <!-- Autenticação -->
+  <div id="auth-container">
+    <h3>Iniciar Sessão</h3>
+    <input type="text" id="name" placeholder="Nome (só para criar conta)">
+    <input type="email" id="email" placeholder="E-mail" required>
+    <input type="password" id="password" placeholder="Palavra-passe" required>
+    <button onclick="login()">Entrar</button>
+    <button onclick="signup()">Criar Conta (Passageiro)</button>
+    <p id="auth-error" class="error"></p>
+  </div>
+
+  <!-- Área autenticada -->
+  <div id="user-container" class="hidden">
+    <p>Sessão: <b id="user-email"></b> (<span id="user-role"></span>) <button onclick="logout()">Sair</button></p>
+    <p id="app-error" class="error"></p>
+
+    <fieldset>
+      <legend>Frota</legend>
+      <div class="grid-wrap"><table>
+        <thead><tr><th>ID</th><th>Nome</th><th>Estado</th><th>Localização</th><th>Bateria</th><th class="manager-only"></th></tr></thead>
+        <tbody id="fleet"></tbody>
+      </table></div>
+    </fieldset>
+
+    <fieldset class="manager-only">
+      <legend>Gestor: adicionar / editar veículo</legend>
+      <input id="v-id" placeholder="ID (ex.: taxi_01)">
+      <input id="v-name" placeholder="Nome">
+      <select id="v-status">
+        <option value="active">Ativo</option>
+        <option value="maintenance">Em Manutenção</option>
+        <option value="inactive">Inativo</option>
+      </select>
+      <select id="v-location" class="points"></select>
+      <input id="v-battery" type="number" min="0" max="100" placeholder="Bateria %">
+      <button onclick="saveVehicle()">Guardar</button>
+    </fieldset>
+
+    <fieldset class="passenger-only">
+      <legend>Nova reserva</legend>
+      <select id="r-vehicle"></select>
+      Recolha <select id="r-pickup" class="points"></select>
+      Destino <select id="r-dropoff" class="points"></select>
+      <input id="r-date" type="date">
+      <select id="r-slot" class="slots"></select>
+      <button onclick="book()">Reservar</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Ocupação (Veículo x Bloco Horário) em <input id="grid-date" type="date" onchange="watchGrid()"></legend>
+      <div class="grid-wrap"><table class="grid" id="grid"></table></div>
+      <small>Vermelho = ocupado · Verde = a sua reserva · Cinzento = veículo indisponível</small>
+    </fieldset>
+
+    <fieldset class="manager-only">
+      <legend>Gestor: viagens do dia selecionado</legend>
+      <div class="grid-wrap"><table>
+        <thead><tr><th>Bloco</th><th>Veículo</th><th>Passageiro</th><th>Recolha</th><th>Destino</th><th>Estado</th></tr></thead>
+        <tbody id="day-trips"></tbody>
+      </table></div>
+    </fieldset>
+
+    <fieldset class="passenger-only">
+      <legend>As minhas reservas</legend>
+      <div class="grid-wrap"><table>
+        <thead><tr><th>Veículo</th><th>Data</th><th>Bloco</th><th>Recolha</th><th>Destino</th><th>Estado</th><th></th></tr></thead>
+        <tbody id="my-reservations"></tbody>
+      </table></div>
+    </fieldset>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
