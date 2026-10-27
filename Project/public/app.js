@@ -41,6 +41,9 @@ let gridReservations = [];
 
 for (const sel of document.querySelectorAll(".points")) sel.innerHTML = POINTS.map((p) => `<option>${esc(p)}</option>`).join("");
 for (const sel of document.querySelectorAll(".slots")) sel.innerHTML = SLOTS.map((s) => `<option>${s}</option>`).join("");
+for (const id of ["fleet-search", "fleet-status-filter", "fleet-location-filter", "fleet-battery-filter"]) {
+  $(id).addEventListener(id === "fleet-search" ? "input" : "change", renderFleet);
+}
 const today = new Date().toISOString().slice(0, 10);
 $("r-date").value = today;
 $("r-date").min = today;
@@ -88,13 +91,47 @@ onAuthStateChanged(auth, async (user) => {
 
 function renderFleet() {
   const isManager = me?.role === "manager";
-  $("fleet").innerHTML = vehicles.map((v) => `<tr><td>${esc(v.vehicleId)}</td><td>${esc(v.name)}</td><td>${esc(STATUS[v.status] || v.status)}</td>
+  const locationFilter = $("fleet-location-filter");
+  const selectedLocation = locationFilter.value;
+  const locations = [...new Set(vehicles.map((v) => v.currentLocation).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b));
+  locationFilter.innerHTML = `<option value="">Todas as localizações</option>${locations
+    .map((location) => `<option value="${esc(location)}">${esc(location)}</option>`).join("")}`;
+  if (locations.includes(selectedLocation)) locationFilter.value = selectedLocation;
+
+  const search = $("fleet-search").value.trim().toLocaleLowerCase();
+  const status = $("fleet-status-filter").value;
+  const location = locationFilter.value;
+  const battery = $("fleet-battery-filter").value;
+  const filteredVehicles = vehicles.filter((v) => {
+    const searchableText = `${v.vehicleId} ${v.name}`.toLocaleLowerCase();
+    const level = Number(v.batteryLevel);
+    const matchesBattery = !battery
+      || (battery === "75" && level >= 75)
+      || (battery === "50-74" && level >= 50 && level <= 74)
+      || (battery === "25-49" && level >= 25 && level <= 49)
+      || (battery === "0-24" && level >= 0 && level < 25);
+    return searchableText.includes(search)
+      && (!status || v.status === status)
+      && (!location || v.currentLocation === location)
+      && matchesBattery;
+  });
+  $("fleet-count").textContent = `A mostrar ${filteredVehicles.length} de ${vehicles.length} veículos`;
+  $("fleet").innerHTML = filteredVehicles.map((v) => `<tr><td>${esc(v.vehicleId)}</td><td>${esc(v.name)}</td><td>${esc(STATUS[v.status] || v.status)}</td>
     <td>${esc(v.currentLocation)}</td><td>${esc(v.batteryLevel)}%</td>
     <td class="${isManager ? "" : "hidden"}"><button onclick="editVehicle('${esc(v.vehicleId)}')">Editar</button></td></tr>`).join("")
-    || `<tr><td colspan="6">Sem veículos.</td></tr>`;
+    || `<tr><td colspan="6">${vehicles.length ? "Nenhum veículo corresponde aos filtros." : "Sem veículos."}</td></tr>`;
   $("r-vehicle").innerHTML = vehicles.filter((v) => v.status === "active")
     .map((v) => `<option value="${esc(v.vehicleId)}">${esc(v.name)} (${esc(v.currentLocation)})</option>`).join("");
 }
+
+window.clearFleetFilters = () => {
+  $("fleet-search").value = "";
+  $("fleet-status-filter").value = "";
+  $("fleet-location-filter").value = "";
+  $("fleet-battery-filter").value = "";
+  renderFleet();
+};
 
 window.watchGrid = () => {
   if (gridUnsub) gridUnsub();

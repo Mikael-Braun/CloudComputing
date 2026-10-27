@@ -5,22 +5,229 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RoboTaxi App</title>
   <style>
-    body { font-family: sans-serif; max-width: 1000px; margin: 20px auto; padding: 0 16px; }
-    input, select, button { padding: 8px; margin: 4px 0; box-sizing: border-box; }
+    :root {
+      color-scheme: light;
+      font-family: Inter, "Segoe UI", sans-serif;
+      color: #203447;
+      background: #f1f8fc;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+      --ink: #203447;
+      --navy: #234b70;
+      --navy-deep: #173651;
+      --accent: #3b91c5;
+      --accent-dark: #287ba9;
+      --accent-soft: #e8f4fb;
+      --muted: #667b8b;
+      --border: #d5e5ee;
+      --surface: #fff;
+      --surface-soft: #f6fafc;
+    }
+    * { box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 36px 20px 56px;
+      background:
+        radial-gradient(ellipse at 8% 12%, rgba(91, 177, 220, .2) 0, transparent 32%),
+        radial-gradient(ellipse at 94% 62%, rgba(59, 145, 197, .11) 0, transparent 30%),
+        linear-gradient(145deg, #f8fcfe 0%, #eaf5fb 52%, #f1f8fc 100%);
+      background-attachment: fixed;
+    }
+    body > h2, #user-container {
+      width: min(1120px, 100%);
+      margin-left: auto;
+      margin-right: auto;
+    }
+    body > h2 {
+      margin-top: 0;
+      margin-bottom: 22px;
+      color: var(--ink);
+      font-size: clamp(1.7rem, 4vw, 2.35rem);
+      letter-spacing: -0.06em;
+    }
+    #auth-container {
+      max-width: 430px;
+      margin: 48px auto;
+      padding: 30px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: rgba(255, 255, 255, .94);
+      box-shadow: 0 20px 60px rgba(23, 54, 81, .1);
+    }
+    #auth-container h3 { margin: 0 0 20px; font-size: 1.35rem; }
     #auth-container input, #auth-container button { width: 100%; }
-    #auth-container { max-width: 400px; margin: 0 auto; }
-    button { background-color: #0284c7; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
-    button.danger { background-color: #dc2626; }
-    table { border-collapse: collapse; width: 100%; margin: 8px 0; }
-    th, td { border: 1px solid #ccc; padding: 4px 6px; font-size: 13px; text-align: left; }
-    .grid-wrap { overflow-x: auto; }
-    .grid td { text-align: center; min-width: 38px; }
-    .busy { background: #fecaca; }
-    .mine { background: #bbf7d0; }
-    .off { background: #e5e7eb; }
+    input, select, button {
+      min-height: 42px;
+      margin: 5px 3px 5px 0;
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      font: inherit;
+    }
+    input, select { background: var(--surface); color: var(--ink); }
+    input:focus, select:focus {
+      border-color: var(--accent);
+      outline: 3px solid rgba(59, 145, 197, .18);
+    }
+    button {
+      border: 0;
+      background: linear-gradient(135deg, var(--navy), var(--accent));
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 3px 8px rgba(23, 54, 81, .16);
+      transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+    }
+    button:hover {
+      transform: translateY(-1px);
+      background: linear-gradient(135deg, var(--navy-deep), var(--accent-dark));
+      box-shadow: 0 5px 14px rgba(23, 54, 81, .22);
+    }
+    button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+    button.danger { background: #dc2626; }
+    button.danger:hover { background: #b91c1c; box-shadow: 0 5px 14px rgba(185, 28, 28, .2); }
+    #user-container > p:first-child {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+      color: var(--muted);
+    }
+    #user-email { color: var(--ink); }
+    #user-container > p:first-child button { margin-left: auto; }
+    .panel {
+      min-width: 0;
+      margin: 18px 0;
+      padding: 16px 18px 18px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, .94);
+      box-shadow: 0 8px 24px rgba(23, 54, 81, .055);
+    }
+    .panel-title {
+      margin: 0 0 16px;
+      color: var(--navy);
+      font-size: 1.05rem;
+      font-weight: 750;
+      line-height: 1.4;
+    }
+    .panel-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .panel-heading .panel-title { margin-bottom: 12px; }
+    .panel-heading input { margin: 0 0 12px; }
+    .fleet-filters {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 185px), 1fr));
+      gap: 12px;
+      align-items: end;
+      margin: 4px 0 16px;
+      padding: 16px;
+      border: 1px solid #d1e6f1;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #f8fcfe, #eaf5fb);
+    }
+    .fleet-filter-heading { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 8px; }
+    .fleet-filter-heading strong { color: var(--navy-deep); font-size: .94rem; }
+    .fleet-filter-heading small { font-size: .82rem; }
+    .fleet-filters label {
+      display: grid;
+      gap: 7px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      color: #475569;
+      font-size: .76rem;
+      font-weight: 750;
+      letter-spacing: .035em;
+      text-transform: uppercase;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .fleet-filters label:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(59, 145, 197, .14);
+    }
+    .fleet-filters input, .fleet-filters select {
+      width: 100%;
+      min-height: 40px;
+      margin: 0;
+      border-color: transparent;
+      background-color: var(--surface-soft);
+      font-size: .9rem;
+      letter-spacing: normal;
+      text-transform: none;
+    }
+    .fleet-filters input:focus, .fleet-filters select:focus { outline: none; }
+    .fleet-filter-actions {
+      display: flex;
+      flex-direction: column;
+      min-height: 60px;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 7px;
+    }
+    .fleet-filter-actions button { min-height: 40px; margin: 0; white-space: nowrap; }
+    .fleet-filter-actions small {
+      padding: 7px 10px;
+      border: 1px solid #d1e6f1;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--navy);
+      font-size: .76rem;
+      font-weight: 700;
+      line-height: 1.3;
+      text-align: center;
+      white-space: nowrap;
+    }
+    button.secondary { border: 1px solid var(--border); background: var(--surface); color: var(--navy); box-shadow: none; }
+    button.secondary:hover { background: var(--accent-soft); box-shadow: 0 4px 12px rgba(23, 54, 81, .1); }
+    table { width: 100%; margin: 8px 0; border-collapse: separate; border-spacing: 0; }
+    th, td {
+      padding: 10px 12px;
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      font-size: .88rem;
+      text-align: left;
+      white-space: nowrap;
+    }
+    th { background: #f1f5f9; color: var(--ink); font-weight: 700; }
+    thead th { border-top: 1px solid var(--border); }
+    tr > :first-child { border-left: 1px solid var(--border); }
+    thead tr:first-child th:first-child { border-top-left-radius: 8px; }
+    thead tr:first-child th:last-child { border-top-right-radius: 8px; }
+    tbody tr { background: var(--surface); }
+    #fleet td[colspan] { padding: 24px 12px; color: var(--muted); text-align: center; }
+    .grid-wrap { overflow-x: auto; border-radius: 9px; }
+    .grid th, .grid td { text-align: center; }
+    .grid td { min-width: 40px; padding: 8px 5px; }
+    .grid .busy { background: #fee2e2; color: #b91c1c; }
+    .grid .mine { background: #ccfbf1; color: #0f766e; }
+    .grid .off { background: #e2e8f0; }
+    small { color: var(--muted); }
     .hidden { display: none; }
-    .error { color: #dc2626; }
-    fieldset { border: 1px solid #ccc; border-radius: 8px; margin: 12px 0; min-width: 0; }
+    .error { color: #b91c1c; }
+    @media (max-width: 640px) {
+      body { padding: 22px 12px 36px; }
+      #auth-container { margin: 28px auto; padding: 22px; }
+      .panel { padding: 12px; }
+      #user-container > p:first-child { flex-wrap: wrap; }
+      th, td { padding: 8px; font-size: .8rem; }
+      .panel input, .panel select { max-width: 100%; }
+      .panel-heading { align-items: flex-start; flex-direction: column; gap: 0; }
+      .panel-heading input { margin-bottom: 12px; }
+      .fleet-filters { grid-template-columns: 1fr; gap: 9px; padding: 12px; }
+      .fleet-filter-heading { display: grid; gap: 3px; }
+      .fleet-filter-actions { min-height: auto; flex-wrap: wrap; }
+      .fleet-filter-actions button { flex: 1; }
+    }
   </style>
 </head>
 <body>
@@ -42,16 +249,51 @@
     <p>Sessão: <b id="user-email"></b> (<span id="user-role"></span>) <button onclick="logout()">Sair</button></p>
     <p id="app-error" class="error"></p>
 
-    <fieldset>
-      <legend>Frota</legend>
+    <section class="panel">
+      <h3 class="panel-title">Frota</h3>
+      <div class="fleet-filters">
+        <div class="fleet-filter-heading">
+          <strong>Encontrar um veículo</strong>
+          <small>Combina a pesquisa com um ou mais filtros.</small>
+        </div>
+        <label for="fleet-search">Pesquisar veículo
+          <input id="fleet-search" type="search" placeholder="Nome ou ID">
+        </label>
+        <label for="fleet-status-filter">Estado
+          <select id="fleet-status-filter">
+            <option value="">Todos os estados</option>
+            <option value="active">Ativo</option>
+            <option value="maintenance">Em Manutenção</option>
+            <option value="inactive">Inativo</option>
+          </select>
+        </label>
+        <label for="fleet-location-filter">Localização
+          <select id="fleet-location-filter">
+            <option value="">Todas as localizações</option>
+          </select>
+        </label>
+        <label for="fleet-battery-filter">Bateria
+          <select id="fleet-battery-filter">
+            <option value="">Qualquer nível</option>
+            <option value="75">75% ou mais</option>
+            <option value="50-74">50% a 74%</option>
+            <option value="25-49">25% a 49%</option>
+            <option value="0-24">Menos de 25%</option>
+          </select>
+        </label>
+        <div class="fleet-filter-actions">
+          <button class="secondary" type="button" onclick="clearFleetFilters()">Limpar filtros</button>
+          <small id="fleet-count" aria-live="polite"></small>
+        </div>
+      </div>
       <div class="grid-wrap"><table>
         <thead><tr><th>ID</th><th>Nome</th><th>Estado</th><th>Localização</th><th>Bateria</th><th class="manager-only"></th></tr></thead>
         <tbody id="fleet"></tbody>
       </table></div>
-    </fieldset>
+    </section>
 
-    <fieldset class="manager-only">
-      <legend>Gestor: adicionar / editar veículo</legend>
+    <section class="panel manager-only">
+      <h3 class="panel-title">Gestor: adicionar / editar veículo</h3>
       <input id="v-id" placeholder="ID (ex.: taxi_01)">
       <input id="v-name" placeholder="Nome">
       <select id="v-status">
@@ -62,39 +304,42 @@
       <select id="v-location" class="points"></select>
       <input id="v-battery" type="number" min="0" max="100" placeholder="Bateria %">
       <button onclick="saveVehicle()">Guardar</button>
-    </fieldset>
+    </section>
 
-    <fieldset class="passenger-only">
-      <legend>Nova reserva</legend>
+    <section class="panel passenger-only">
+      <h3 class="panel-title">Nova reserva</h3>
       <select id="r-vehicle"></select>
       Recolha <select id="r-pickup" class="points"></select>
       Destino <select id="r-dropoff" class="points"></select>
       <input id="r-date" type="date">
       <select id="r-slot" class="slots"></select>
       <button onclick="book()">Reservar</button>
-    </fieldset>
+    </section>
 
-    <fieldset>
-      <legend>Ocupação (Veículo x Bloco Horário) em <input id="grid-date" type="date" onchange="watchGrid()"></legend>
+    <section class="panel">
+      <div class="panel-heading">
+        <h3 class="panel-title">Ocupação (Veículo x Bloco Horário)</h3>
+        <input id="grid-date" type="date" aria-label="Data da ocupação" onchange="watchGrid()">
+      </div>
       <div class="grid-wrap"><table class="grid" id="grid"></table></div>
       <small>Vermelho = ocupado · Verde = a sua reserva · Cinzento = veículo indisponível</small>
-    </fieldset>
+    </section>
 
-    <fieldset class="manager-only">
-      <legend>Gestor: viagens do dia selecionado</legend>
+    <section class="panel manager-only">
+      <h3 class="panel-title">Gestor: viagens do dia selecionado</h3>
       <div class="grid-wrap"><table>
         <thead><tr><th>Bloco</th><th>Veículo</th><th>Passageiro</th><th>Recolha</th><th>Destino</th><th>Estado</th></tr></thead>
         <tbody id="day-trips"></tbody>
       </table></div>
-    </fieldset>
+    </section>
 
-    <fieldset class="passenger-only">
-      <legend>As minhas reservas</legend>
+    <section class="panel passenger-only">
+      <h3 class="panel-title">As minhas reservas</h3>
       <div class="grid-wrap"><table>
         <thead><tr><th>Veículo</th><th>Data</th><th>Bloco</th><th>Recolha</th><th>Destino</th><th>Estado</th><th></th></tr></thead>
         <tbody id="my-reservations"></tbody>
       </table></div>
-    </fieldset>
+    </section>
   </div>
 
   <script type="module" src="app.js"></script>
