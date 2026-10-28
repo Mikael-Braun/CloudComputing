@@ -115,13 +115,15 @@ Topics may include:
 The research compares technical approaches, cloud service models, advantages, limitations, security considerations and provider strategies.  
 The topic researched was **Generative AI as a Service**.  
 
-Detailed research material is available in [`Research/`](./Research/).
+The research report and presentation will be added to this repository when finished.
 
 ---
 
 ## 🛠️ Practical Project
 
-A **cloud-based web application** developed using managed cloud services and a serverless/BaaS approach.
+**RoboTaxi App**: a web application for booking autonomous taxis on a university campus, built on a BaaS approach (Firebase Spark).
+
+🌐 Live: **[cn-robottaxi.web.app](https://cn-robottaxi.web.app)**
 
 ### Main Components
 
@@ -129,14 +131,14 @@ A **cloud-based web application** developed using managed cloud services and a s
 * 🗄️ **Cloud Firestore:** Application database
 * 🔑 **Firebase Authentication:** User authentication
 * 🛡️ **Firestore Security Rules:** Authorization and data protection
-* ⚙️ **GitHub Actions:** Automated deployment
-* 🧪 **Firebase Local Emulator Suite:** Local development and security-rule testing
+* ⚙️ **GitHub Actions:** Automated testing and deployment on every push to `main`
+* 🧪 **Firebase Local Emulator Suite:** Local development and security-rule testing (29 automated tests)
 
 The application includes role-based access with:
 
 ```text
-user
-manager
+passenger   books, views and cancels own trips
+manager     manages the fleet and trip status
 ```
 
 The project is designed to operate within the **Firebase Spark free-tier limitations**, with no paid cloud services required.
@@ -186,23 +188,21 @@ Security configurations and rules are tested using the **Firebase Local Emulator
 ## 📂 Repository Structure
 
 ```text
-Cloud-Computing/
+CloudComputing/
 │
 ├── README.md
-│
-├── Research/
-│   ├── README.md
-│   ├── report/
-│   └── presentation/
+├── .github/
+│   └── workflows/
+│       └── deploy.yml        ← test + deploy pipeline
 │
 └── Project/
-    ├── README.md
-    ├── src/
-    ├── firebase/
-    ├── .github/
-    │   └── workflows/
-    └── docs/
+    ├── README.md             ← setup, architecture and rules
+    ├── firebase.json
+    ├── firestore.rules       ← Security Rules
+    ├── public/               ← web app (index.html, app.js)
+    └── tests/                ← rules tests + emulator seed data
 ```
+
 ## Authors 
 
 * Gustavo Silva 
