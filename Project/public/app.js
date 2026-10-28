@@ -199,6 +199,10 @@ window.editVehicle = (id) => {
   $("v-status").value = v.status;
   $("v-location").value = v.currentLocation;
   $("v-battery").value = v.batteryLevel;
+  // O formulário fica longe da tabela: levar o gestor até ele.
+  $("v-msg").innerText = `A editar ${v.vehicleId}`;
+  $("v-name").scrollIntoView({ behavior: "smooth", block: "center" });
+  $("v-name").focus({ preventScroll: true });
 };
 
 window.saveVehicle = async () => {
@@ -212,6 +216,7 @@ window.saveVehicle = async () => {
       currentLocation: $("v-location").value, batteryLevel: parseInt($("v-battery").value, 10) || 0,
       createdAt: existing?.createdAt ?? serverTimestamp()
     });
+    $("v-msg").innerText = `${vehicleId} guardado ✓`;
   } catch (err) { showError(err); }
 };
 
