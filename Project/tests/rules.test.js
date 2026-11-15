@@ -112,9 +112,25 @@ test("reserva com data passada é rejeitada", () => {
   const r = reservation("ana", "taxi_01", "2020-01-01");
   return assertFails(setDoc(resRef(ana(), r), r));
 });
+// TODAY em UTC, como as regras. 00:00 já passou e 23:30 ainda não (salvo a correr nessa meia hora).
+const TODAY = new Date().toISOString().slice(0, 10);
 test("reserva para hoje é aceite", () => {
-  const r = reservation("ana", "taxi_01", new Date().toISOString().slice(0, 10), "23:30");
+  const r = reservation("ana", "taxi_01", TODAY, "23:30");
   return assertSucceeds(setDoc(resRef(ana(), r), r));
+});
+test("bloco de hoje que já começou é rejeitado", () => {
+  const r = reservation("ana", "taxi_01", TODAY, "00:00");
+  return assertFails(setDoc(resRef(ana(), r), r));
+});
+test("veículo com bateria abaixo de 20% não é reservado", async () => {
+  await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), "vehicles/taxi_03"), { ...vehicle("taxi_03"), batteryLevel: 15 }));
+  const r = reservation("ana", "taxi_03");
+  await assertFails(setDoc(resRef(ana(), r), r));
+});
+test("veículo com bateria de 20% é reservado", async () => {
+  await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), "vehicles/taxi_03"), { ...vehicle("taxi_03"), batteryLevel: 20 }));
+  const r = reservation("ana", "taxi_03");
+  await assertSucceeds(setDoc(resRef(ana(), r), r));
 });
 test("passengerName tem de ser o nome do perfil", () => {
   const r = { ...reservation("ana"), passengerName: "Outra Pessoa" };

@@ -26,6 +26,7 @@ if (local) {
 const POINTS = ["Entrada Norte", "Entrada Sul", "Biblioteca", "Cantina", "Residências", "Parque de Estacionamento"];
 // Blocos fixos de 30 minutos, 08:00–19:30.
 const SLOTS = Array.from({ length: 24 }, (_, i) => `${String(8 + Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
+const MIN_BATTERY = 20; // igual a minBattery() em firestore.rules
 const STATUS = { active: "Ativo", maintenance: "Em Manutenção", inactive: "Inativo" };
 const TRIP_STATUS = { booked: "Reservada", in_progress: "Em curso", completed: "Concluída" };
 
@@ -124,8 +125,9 @@ function renderFleet() {
     <td>${esc(v.currentLocation)}</td><td>${esc(v.batteryLevel)}%</td>
     <td class="${isManager ? "" : "hidden"}"><button onclick="editVehicle('${esc(v.vehicleId)}')">Editar</button></td></tr>`).join("")
     || `<tr><td colspan="6">${vehicles.length ? "Nenhum veículo corresponde aos filtros." : "Sem veículos."}</td></tr>`;
-  $("r-vehicle").innerHTML = vehicles.filter((v) => v.status === "active")
-    .map((v) => `<option value="${esc(v.vehicleId)}">${esc(v.name)} (${esc(v.currentLocation)})</option>`).join("");
+  // Mesmo critério das Security Rules: ativo e com bateria >= MIN_BATTERY.
+  $("r-vehicle").innerHTML = vehicles.filter((v) => v.status === "active" && Number(v.batteryLevel) >= MIN_BATTERY)
+    .map((v) => `<option value="${esc(v.vehicleId)}">${esc(v.name)} (${esc(v.currentLocation)} · ${esc(v.batteryLevel)}%)</option>`).join("");
 }
 
 window.clearFleetFilters = () => {
@@ -174,8 +176,9 @@ window.book = async () => {
   const vehicleId = $("r-vehicle").value;
   const date = $("r-date").value;
   const timeSlot = $("r-slot").value;
-  if (!vehicleId || !date) return showError(new Error("Escolha um veículo ativo e uma data."));
-  if (date < new Date().toISOString().slice(0, 10)) return showError(new Error("Não é possível reservar datas passadas."));
+  if (!vehicleId || !date) return showError(new Error("Escolha um veículo ativo (bateria ≥ 20%) e uma data."));
+  // Hora em UTC, como em slotNotPast() nas regras.
+  if (new Date(`${date}T${timeSlot}:00Z`) <= new Date()) return showError(new Error("Esse bloco já começou. Escolha um horário futuro."));
   if ($("r-pickup").value === $("r-dropoff").value) return showError(new Error("Recolha e destino têm de ser diferentes."));
   const reservationId = `${vehicleId}_${date.replaceAll("-", "")}_${timeSlot.replace(":", "")}`;
   try {

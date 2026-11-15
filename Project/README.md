@@ -8,7 +8,7 @@
 ![Firestore](https://img.shields.io/badge/Cloud_Firestore-NoSQL-FF6F00?logo=firebase&logoColor=white)
 ![JavaScript](https://img.shields.io/badge/JavaScript-Vanilla-F7DF1E?logo=javascript&logoColor=black)
 ![GitHub Actions](https://img.shields.io/badge/CI%2FCD-GitHub_Actions-2088FF?logo=githubactions&logoColor=white)
-![Testes](https://img.shields.io/badge/Security_Rules-31_testes-22c55e)
+![Testes](https://img.shields.io/badge/Security_Rules-34_testes-22c55e)
 
 🌐 **[cn-robottaxi.web.app](https://cn-robottaxi.web.app)** · Computação em Nuvem · ISLA Gaia · Grupo B
 
@@ -108,11 +108,24 @@ Depois abre **http://localhost:5000** e entra com uma das contas de [`tests/seed
 
 | Comando | O que faz |
 | --- | --- |
-| `npm test` | Corre os 31 testes das Security Rules no emulador |
+| `npm test` | Corre os 34 testes das Security Rules no emulador |
 | `npm run serve` | Arranca os emuladores e serve a app em `localhost:5000` |
 | `npm run seed` | Carrega dados de teste (com `serve` a correr) |
 
 > ⚠️ Os dados dos emuladores desaparecem quando os paras. Corre `npm run seed` outra vez depois de reiniciar.
+
+### 🐳 Com Docker (sem instalar Node nem Java)
+
+O [`Dockerfile`](Dockerfile) traz o Firebase CLI, o Java e os emuladores já descarregados.
+
+```bash
+docker build -t robotaxi-dev .
+docker run --rm -p 4000:4000 -p 4400:4400 -p 4500:4500 -p 5000:5000 -p 8080:8080 -p 9099:9099 --name robotaxi robotaxi-dev
+docker exec robotaxi npm run seed   # noutro terminal
+docker exec -e FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 robotaxi node --test tests/rules.test.js   # testes das regras
+```
+
+App em **http://localhost:5000** e painel dos emuladores em **http://localhost:4000**.
 
 ---
 
@@ -124,8 +137,9 @@ As regras em [`firestore.rules`](firestore.rules) garantem as regras de negócio
 | --- | --- |
 | 🚫 **Sem reservas sobrepostas** | ID determinístico `veiculo_data_bloco` (ex.: `taxi_01_20261028_1430`) + `!exists()` |
 | ⏱️ **Blocos de 30 min** | `timeSlot` só aceita `HH:00` ou `HH:30` |
-| 📅 **Sem datas passadas** | A data tem de ser hoje ou futura |
+| 📅 **Sem horários passados** | O bloco (data + hora) ainda não pode ter começado |
 | 🚗 **Só veículos ativos** | Reserva recusada se `status != 'active'` |
+| 🔋 **Bateria mínima** | Reserva recusada se `batteryLevel < 20` |
 | 👤 **Cada um no seu nome** | `userId` = utilizador autenticado e `passengerName` = nome do perfil |
 | ❌ **Cancelar só antes da viagem** | O passageiro só apaga reservas suas em estado `booked` |
 | 👑 **Sem autopromoção** | O cliente nunca pode escrever `role: 'manager'` |
@@ -135,14 +149,14 @@ As regras em [`firestore.rules`](firestore.rules) garantem as regras de negócio
 
 ### 🧪 Testes
 
-Os [31 testes](tests/rules.test.js) correm no **Firebase Emulator** com `@firebase/rules-unit-testing` e cobrem cada regra acima, nos casos permitidos e nos casos recusados.
+Os [34 testes](tests/rules.test.js) correm no **Firebase Emulator** com `@firebase/rules-unit-testing` e cobrem cada regra acima, nos casos permitidos e nos casos recusados.
 
 ```text
 ✔ não há sobreposição: segundo passageiro no mesmo bloco falha
 ✔ utilizador não se autopromove a manager ao criar
 ✔ passageiro não cancela viagem já iniciada
 ✔ reserva com data passada é rejeitada
-  … 31 testes, 0 falhas
+  … 34 testes, 0 falhas
 ```
 
 ---
@@ -186,10 +200,12 @@ erDiagram
 Cada **push para `main`** dispara o workflow [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml):
 
 ```text
-push main ──► npm ci ──► npm test (31 testes) ──► firebase deploy (Hosting + Rules)
+push main ──► npm ci ──► npm test (34 testes) ──► app.js?v=<commit> ──► firebase deploy (Hosting + Rules)
                               │
                               └── ❌ se algum teste falhar, nada é publicado
 ```
+
+O passo `app.js?v=<commit>` muda o endereço do script em cada deploy, para nenhum browser ficar com o `app.js` antigo em cache.
 
 Os *pull requests* só correm os testes, não publicam.
 
@@ -214,6 +230,7 @@ Os *pull requests* só correm os testes, não publicam.
 
 ```text
 Project/
+├── 🐳 Dockerfile             ← ambiente de desenvolvimento com os emuladores
 ├── 📄 firebase.json          ← configuração de Hosting, Firestore e emuladores
 ├── 🛡️ firestore.rules        ← Security Rules
 ├── 📦 package.json           ← scripts: test · serve · seed
@@ -221,7 +238,7 @@ Project/
 │   ├── index.html            ← interface (passageiro + gestor)
 │   └── app.js                ← lógica e ligação ao Firebase
 └── 🧪 tests/
-    ├── rules.test.js         ← 31 testes das Security Rules
+    ├── rules.test.js         ← 34 testes das Security Rules
     └── seed.js               ← dados de teste para os emuladores
 ```
 

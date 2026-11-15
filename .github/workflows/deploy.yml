@@ -22,6 +22,10 @@ jobs:
           java-version: 21
       - run: npm ci
       - run: npm test
+      # Cache busting: app.js?v=<commit>, para nenhum browser ficar com o app.js antigo.
+      - name: Versionar app.js
+        if: github.event_name == 'push'
+        run: sed -i -E "s/app\.js\?v=[0-9a-z]+/app.js?v=${GITHUB_SHA::7}/" public/index.html && grep -o 'app.js?v=[0-9a-z]*' public/index.html
       # Só publica em push para main e se os testes das regras passarem.
       - name: Deploy (Hosting + Firestore Rules)
         if: github.event_name == 'push'
