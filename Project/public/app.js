@@ -27,6 +27,7 @@ const POINTS = ["Entrada Norte", "Entrada Sul", "Biblioteca", "Cantina", "Resid�
 // Blocos fixos de 30 minutos, 08:00–19:30.
 const SLOTS = Array.from({ length: 24 }, (_, i) => `${String(8 + Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
 const MIN_BATTERY = 20; // igual a minBattery() em firestore.rules
+const TRIP_BATTERY = 5; // % gasta em cada viagem concluída
 const STATUS = { active: "Ativo", maintenance: "Em Manutenção", inactive: "Inativo" };
 const TRIP_STATUS = { booked: "Reservada", in_progress: "Em curso", completed: "Concluída" };
 
@@ -171,8 +172,12 @@ window.setTripStatus = async (id, status) => {
   const trip = gridReservations.find((r) => r.reservationId === id);
   const batch = writeBatch(db);
   batch.update(doc(db, "reservations", id), { status });
-  // Viagem concluída: o veículo fica no destino. Batch = as duas escritas ou nenhuma.
-  if (status === "completed") batch.update(doc(db, "vehicles", trip.vehicleId), { currentLocation: trip.dropoffPoint });
+  // Viagem concluída: o veículo fica no destino e gasta bateria. Batch = as duas escritas ou nenhuma.
+  if (status === "completed" && trip.status !== "completed") {
+    const v = vehicles.find((x) => x.vehicleId === trip.vehicleId);
+    // Math.max e não increment(-5): as regras recusam bateria < 0.
+    batch.update(doc(db, "vehicles", trip.vehicleId), { currentLocation: trip.dropoffPoint, batteryLevel: Math.max(0, v.batteryLevel - TRIP_BATTERY) });
+  }
   try { await batch.commit(); } catch (err) { showError(err); }
 };
 
