@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, connectAuthEmulator, sendEmailVerification }
   from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, onSnapshot, serverTimestamp, connectFirestoreEmulator }
+import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, query, where, onSnapshot, serverTimestamp, connectFirestoreEmulator, writeBatch }
   from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -168,7 +168,12 @@ function renderGrid() {
 
 window.setTripStatus = async (id, status) => {
   showError(null);
-  try { await updateDoc(doc(db, "reservations", id), { status }); } catch (err) { showError(err); }
+  const trip = gridReservations.find((r) => r.reservationId === id);
+  const batch = writeBatch(db);
+  batch.update(doc(db, "reservations", id), { status });
+  // Viagem concluída: o veículo fica no destino. Batch = as duas escritas ou nenhuma.
+  if (status === "completed") batch.update(doc(db, "vehicles", trip.vehicleId), { currentLocation: trip.dropoffPoint });
+  try { await batch.commit(); } catch (err) { showError(err); }
 };
 
 window.book = async () => {
