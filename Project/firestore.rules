@@ -2,7 +2,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function signedIn() { return request.auth != null; }
+    // Sessão iniciada e e-mail confirmado pelo link enviado na criação da conta.
+    function signedIn() { return request.auth != null && request.auth.token.email_verified == true; }
     function isManager() {
       return signedIn()
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'manager';
@@ -16,7 +17,8 @@ service cloud.firestore {
     // Perfis: cada utilizador cria o seu com role 'passenger'; o role nunca é alterado pelo cliente.
     match /users/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || isManager());
-      allow create: if signedIn() && request.auth.uid == uid
+      // O perfil nasce no registo, antes da confirmação do e-mail.
+      allow create: if request.auth != null && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(['uid', 'name', 'email', 'role', 'createdAt'])
         && request.resource.data.uid == uid
         && request.resource.data.role == 'passenger';

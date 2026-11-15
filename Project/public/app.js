@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, connectAuthEmulator }
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, connectAuthEmulator, sendEmailVerification }
   from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, onSnapshot, serverTimestamp, connectFirestoreEmulator }
   from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -53,8 +53,11 @@ onAuthStateChanged(auth, async (user) => {
   unsubs.forEach((u) => u()); unsubs = [];
   if (gridUnsub) { gridUnsub(); gridUnsub = null; }
   $("auth-container").classList.toggle("hidden", !!user);
-  $("user-container").classList.toggle("hidden", !user);
+  $("verify-container").classList.toggle("hidden", !user || user.emailVerified);
+  $("user-container").classList.toggle("hidden", !user?.emailVerified);
   if (!user) { me = null; return; }
+  // As regras recusam tudo a contas com e-mail por confirmar.
+  if (!user.emailVerified) { $("verify-email").innerText = user.email; return; }
 
   const ref = doc(db, "users", user.uid);
   let snap = await getDoc(ref);
@@ -225,9 +228,24 @@ window.login = () => {
     .catch((err) => { $("auth-error").innerText = err.message; });
 };
 
-window.signup = () => {
-  createUserWithEmailAndPassword(auth, $("email").value, $("password").value)
-    .catch((err) => { $("auth-error").innerText = err.message; });
+window.signup = async () => {
+  try {
+    const { user } = await createUserWithEmailAndPassword(auth, $("email").value, $("password").value);
+    // O perfil é criado já, enquanto o nome escrito no formulário ainda existe.
+    await setDoc(doc(db, "users", user.uid), { uid: user.uid, name: $("name").value || user.email, email: user.email, role: "passenger", createdAt: serverTimestamp() });
+    await sendEmailVerification(user);
+  } catch (err) { $("auth-error").innerText = err.message; }
+};
+
+window.resendVerification = () => sendEmailVerification(auth.currentUser)
+  .then(() => { $("verify-msg").innerText = "E-mail reenviado."; })
+  .catch((err) => { $("verify-msg").innerText = err.message; });
+
+window.checkVerified = async () => {
+  await auth.currentUser.reload();
+  if (!auth.currentUser.emailVerified) { $("verify-msg").innerText = "Ainda não confirmado. Clica no link do e-mail."; return; }
+  await auth.currentUser.getIdToken(true); // token novo já com email_verified, que as regras exigem
+  location.reload();
 };
 
 window.logout = () => signOut(auth);

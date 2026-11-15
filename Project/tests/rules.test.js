@@ -4,9 +4,11 @@ import { initializeTestEnvironment, assertSucceeds, assertFails } from "@firebas
 import { doc, getDoc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
 
 let env;
-const ana = () => env.authenticatedContext("ana").firestore();
-const rui = () => env.authenticatedContext("rui").firestore();
-const gestor = () => env.authenticatedContext("gestor").firestore();
+// Contas com o e-mail já confirmado, como exigem as regras.
+const verified = (uid) => env.authenticatedContext(uid, { email_verified: true }).firestore();
+const ana = () => verified("ana");
+const rui = () => verified("rui");
+const gestor = () => verified("gestor");
 const anon = () => env.unauthenticatedContext().firestore();
 
 const vehicle = (id, status = "active") =>
@@ -42,8 +44,14 @@ beforeEach(async () => {
 
 after(() => env.cleanup());
 
-// users
+// users ("novo" acabou de se registar: e-mail ainda por confirmar)
 const novo = () => env.authenticatedContext("novo").firestore();
+test("e-mail por confirmar não lê a frota", () => assertFails(getDoc(doc(novo(), "vehicles/taxi_01"))));
+test("e-mail por confirmar não reserva", async () => {
+  await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), "users/novo"), { uid: "novo", name: "Novo", email: "n@x.pt", role: "passenger" }));
+  const r = { ...reservation("ana"), userId: "novo", passengerName: "Novo" };
+  await assertFails(setDoc(resRef(novo(), r), r));
+});
 test("utilizador cria o próprio perfil como passenger", () =>
   assertSucceeds(setDoc(doc(novo(), "users/novo"), { uid: "novo", name: "Novo", email: "n@x.pt", role: "passenger" })));
 test("utilizador não se autopromove a manager ao criar", () =>

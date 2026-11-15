@@ -244,6 +244,16 @@
     <p id="auth-error" class="error"></p>
   </div>
 
+  <!-- Conta criada mas e-mail por confirmar -->
+  <div id="verify-container" class="hidden">
+    <h3>Confirma o teu e-mail</h3>
+    <p>Enviámos um link de confirmação para <b id="verify-email"></b>. Abre o e-mail (vê também o spam), clica no link e depois carrega em "Já confirmei".</p>
+    <button onclick="checkVerified()">Já confirmei</button>
+    <button onclick="resendVerification()">Reenviar e-mail</button>
+    <button onclick="logout()">Sair</button>
+    <p id="verify-msg" aria-live="polite"></p>
+  </div>
+
   <!-- Área autenticada -->
   <div id="user-container" class="hidden">
     <p>Sessão: <b id="user-email"></b> (<span id="user-role"></span>) <button onclick="logout()">Sair</button></p>

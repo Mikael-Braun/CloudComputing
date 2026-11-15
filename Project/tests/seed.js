@@ -23,6 +23,11 @@ await env.withSecurityRulesDisabled(async (ctx) => {
     });
     const { localId, error } = await res.json();
     if (error) throw new Error(`${a.email}: ${error.message}`);
+    // Contas de teste já com o e-mail confirmado (as regras exigem-no).
+    await fetch(`http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/projects/${PROJECT}/accounts:update`, {
+      method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer owner" },
+      body: JSON.stringify({ localId, emailVerified: true })
+    });
     await setDoc(doc(db, "users", localId), { uid: localId, name: a.name, email: a.email, role: a.role, createdAt: new Date() });
   }
   for (const v of VEHICLES) await setDoc(doc(db, "vehicles", v.vehicleId), { ...v, createdAt: new Date() });
