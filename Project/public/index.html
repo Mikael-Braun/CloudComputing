@@ -36,17 +36,14 @@
       padding: 0 20px 56px;
       background: var(--surface-soft);
     }
-    /* Faixa superior preta, como no site do ISLA */
+    /* Faixa superior: preto com fio carmim */
     body::before {
-      content: "ISLA Gaia · Computação em Nuvem";
+      content: "";
       display: block;
-      margin: 0 -20px 28px;
-      padding: 7px 20px;
+      height: 10px;
+      margin: 0 -20px 32px;
       background: #000;
-      color: rgba(255, 255, 255, .75);
-      font: 500 .72rem "Work Sans", sans-serif;
-      letter-spacing: .08em;
-      text-transform: uppercase;
+      border-bottom: 4px solid var(--accent);
     }
     body > h2, #user-container {
       width: min(1120px, 100%);
@@ -68,11 +65,18 @@
       margin: 48px auto;
       padding: 30px;
       border: 1px solid var(--border);
-      border-radius: 20px;
-      background: rgba(255, 255, 255, .94);
+      border-top: 5px solid var(--accent);
+      border-radius: 16px;
+      background: var(--surface);
       box-shadow: 0 20px 60px var(--shadow);
     }
-    #auth-container h3, #verify-container h3 { margin: 0 0 20px; font-size: 1.35rem; font-weight: 400; }
+    #auth-container h3, #verify-container h3 { margin: 0 0 6px; font-size: 1.5rem; font-weight: 300; }
+    .auth-sub { margin: 0 0 22px; color: var(--muted); font-size: .92rem; }
+    #auth-container input { margin: 6px 0; }
+    #auth-container button { margin-top: 14px; min-height: 46px; }
+    #auth-container a { color: var(--accent); font-size: .9rem; text-decoration: none; }
+    #auth-container a:hover { text-decoration: underline; }
+    #auth-container p:last-child { margin: 18px 0 0; padding-top: 16px; border-top: 1px solid var(--border); text-align: center; }
     #auth-container input, #auth-container button, #verify-container button { width: 100%; }
     input, select, button {
       min-height: 42px;
@@ -131,7 +135,9 @@
     }
     .panel-title {
       margin: 0 0 16px;
-      color: var(--accent);
+      padding-left: 10px;
+      border-left: 3px solid var(--accent);
+      color: var(--ink);
       font-size: 1.05rem;
       font-weight: 500;
       line-height: 1.4;
@@ -237,7 +243,7 @@
     .error { color: var(--accent); }
     @media (max-width: 640px) {
       body { padding: 0 12px 36px; }
-      body::before { margin: 0 -12px 20px; padding-inline: 12px; }
+      body::before { margin: 0 -12px 22px; }
       #auth-container, #verify-container { margin: 28px auto; padding: 22px; }
       .panel { padding: 12px; }
       #user-container > p:first-child { flex-wrap: wrap; }
@@ -257,13 +263,15 @@
 
   <!-- Autenticação -->
   <div id="auth-container">
-    <h3>Iniciar Sessão</h3>
-    <input type="text" id="name" placeholder="Nome (só para criar conta)">
+    <h3 id="auth-title">Iniciar Sessão</h3>
+    <p class="auth-sub">Reserva o teu RoboTaxi no campus.</p>
+    <input type="text" id="name" class="signup-only hidden" placeholder="Nome">
     <input type="email" id="email" placeholder="E-mail" required>
     <input type="password" id="password" placeholder="Palavra-passe" required>
-    <button onclick="login()">Entrar</button>
-    <button onclick="signup()">Criar Conta (Passageiro)</button>
+    <button class="login-only" onclick="login()">Entrar</button>
+    <button class="signup-only hidden" onclick="signup()">Criar Conta</button>
     <p id="auth-error" class="error"></p>
+    <p><a href="#" id="auth-toggle" onclick="toggleSignup(event)">Ainda não tens conta? Criar conta</a></p>
   </div>
 
   <!-- Conta criada mas e-mail por confirmar -->

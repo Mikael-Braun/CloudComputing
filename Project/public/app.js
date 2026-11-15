@@ -228,11 +228,23 @@ window.login = () => {
     .catch((err) => { $("auth-error").innerText = err.message; });
 };
 
+// Alterna o formulário entre "Iniciar Sessão" e "Criar conta" (só este pede o nome).
+window.toggleSignup = (e) => {
+  e.preventDefault();
+  const signingUp = $("name").classList.contains("hidden");
+  document.querySelectorAll(".signup-only").forEach((el) => el.classList.toggle("hidden", !signingUp));
+  document.querySelectorAll(".login-only").forEach((el) => el.classList.toggle("hidden", signingUp));
+  $("auth-title").innerText = signingUp ? "Criar Conta" : "Iniciar Sessão";
+  $("auth-toggle").innerText = signingUp ? "Já tens conta? Iniciar sessão" : "Ainda não tens conta? Criar conta";
+  $("auth-error").innerText = "";
+};
+
 window.signup = async () => {
+  if (!$("name").value.trim()) { $("auth-error").innerText = "Indica o teu nome."; return; }
   try {
     const { user } = await createUserWithEmailAndPassword(auth, $("email").value, $("password").value);
     // O perfil é criado já, enquanto o nome escrito no formulário ainda existe.
-    await setDoc(doc(db, "users", user.uid), { uid: user.uid, name: $("name").value || user.email, email: user.email, role: "passenger", createdAt: serverTimestamp() });
+    await setDoc(doc(db, "users", user.uid), { uid: user.uid, name: $("name").value.trim(), email: user.email, role: "passenger", createdAt: serverTimestamp() });
     await sendEmailVerification(user);
   } catch (err) { $("auth-error").innerText = err.message; }
 };
