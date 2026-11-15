@@ -4,35 +4,49 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RoboTaxi App</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Work+Sans:wght@500;600&display=swap" rel="stylesheet">
   <style>
     :root {
       color-scheme: light;
-      font-family: Inter, "Segoe UI", sans-serif;
-      color: #203447;
-      background: #f1f8fc;
+      font-family: Roboto, "Segoe UI", sans-serif;
+      color: #292929;
+      background: #f8f8f8;
       font-synthesis: none;
       text-rendering: optimizeLegibility;
-      --ink: #203447;
-      --navy: #234b70;
-      --navy-deep: #173651;
-      --accent: #3b91c5;
-      --accent-dark: #287ba9;
-      --accent-soft: #e8f4fb;
-      --muted: #667b8b;
-      --border: #d5e5ee;
+      /* Cores do ISLA Gaia (islagaia.pt) */
+      --ink: #292929;
+      --navy: #a50624;
+      --navy-deep: #7d0419;
+      --accent: #a50624;
+      --accent-dark: #7d0419;
+      --accent-soft: #fbeef0;
+      --muted: #6b6b6b;
+      --border: #e4e4e4;
       --surface: #fff;
-      --surface-soft: #f6fafc;
+      --surface-soft: #f8f8f8;
+      --ring: rgba(165, 6, 36, .16);
+      --shadow: rgba(0, 0, 0, .08);
     }
     * { box-sizing: border-box; }
     body {
       min-height: 100vh;
       margin: 0;
-      padding: 36px 20px 56px;
-      background:
-        radial-gradient(ellipse at 8% 12%, rgba(91, 177, 220, .2) 0, transparent 32%),
-        radial-gradient(ellipse at 94% 62%, rgba(59, 145, 197, .11) 0, transparent 30%),
-        linear-gradient(145deg, #f8fcfe 0%, #eaf5fb 52%, #f1f8fc 100%);
-      background-attachment: fixed;
+      padding: 0 20px 56px;
+      background: var(--surface-soft);
+    }
+    /* Faixa superior preta, como no site do ISLA */
+    body::before {
+      content: "ISLA Gaia · Computação em Nuvem";
+      display: block;
+      margin: 0 -20px 28px;
+      padding: 7px 20px;
+      background: #000;
+      color: rgba(255, 255, 255, .75);
+      font: 500 .72rem "Work Sans", sans-serif;
+      letter-spacing: .08em;
+      text-transform: uppercase;
     }
     body > h2, #user-container {
       width: min(1120px, 100%);
@@ -42,21 +56,24 @@
     body > h2 {
       margin-top: 0;
       margin-bottom: 22px;
+      padding-left: 14px;
+      border-left: 6px solid var(--accent);
       color: var(--ink);
       font-size: clamp(1.7rem, 4vw, 2.35rem);
-      letter-spacing: -0.06em;
+      font-weight: 300;
+      letter-spacing: -0.02em;
     }
-    #auth-container {
+    #auth-container, #verify-container {
       max-width: 430px;
       margin: 48px auto;
       padding: 30px;
       border: 1px solid var(--border);
       border-radius: 20px;
       background: rgba(255, 255, 255, .94);
-      box-shadow: 0 20px 60px rgba(23, 54, 81, .1);
+      box-shadow: 0 20px 60px var(--shadow);
     }
-    #auth-container h3 { margin: 0 0 20px; font-size: 1.35rem; }
-    #auth-container input, #auth-container button { width: 100%; }
+    #auth-container h3, #verify-container h3 { margin: 0 0 20px; font-size: 1.35rem; font-weight: 400; }
+    #auth-container input, #auth-container button, #verify-container button { width: 100%; }
     input, select, button {
       min-height: 42px;
       margin: 5px 3px 5px 0;
@@ -68,25 +85,29 @@
     input, select { background: var(--surface); color: var(--ink); }
     input:focus, select:focus {
       border-color: var(--accent);
-      outline: 3px solid rgba(59, 145, 197, .18);
+      outline: 3px solid var(--ring);
     }
     button {
       border: 0;
-      background: linear-gradient(135deg, var(--navy), var(--accent));
+      border-radius: 999px;
+      background: var(--accent);
       color: #fff;
-      font-weight: 700;
+      font: 500 .8rem "Work Sans", sans-serif;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      padding-inline: 18px;
       cursor: pointer;
-      box-shadow: 0 3px 8px rgba(23, 54, 81, .16);
+      box-shadow: none;
       transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
     }
     button:hover {
       transform: translateY(-1px);
-      background: linear-gradient(135deg, var(--navy-deep), var(--accent-dark));
-      box-shadow: 0 5px 14px rgba(23, 54, 81, .22);
+      background: var(--accent-dark);
+      box-shadow: 0 5px 14px var(--ring);
     }
     button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-    button.danger { background: #dc2626; }
-    button.danger:hover { background: #b91c1c; box-shadow: 0 5px 14px rgba(185, 28, 28, .2); }
+    button.danger { background: #292929; }
+    button.danger:hover { background: #000; box-shadow: 0 5px 14px var(--shadow); }
     #user-container > p:first-child {
       display: flex;
       align-items: center;
@@ -106,13 +127,13 @@
       border: 1px solid var(--border);
       border-radius: 16px;
       background: rgba(255, 255, 255, .94);
-      box-shadow: 0 8px 24px rgba(23, 54, 81, .055);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .04);
     }
     .panel-title {
       margin: 0 0 16px;
-      color: var(--navy);
+      color: var(--accent);
       font-size: 1.05rem;
-      font-weight: 750;
+      font-weight: 500;
       line-height: 1.4;
     }
     .panel-heading {
@@ -130,9 +151,9 @@
       align-items: end;
       margin: 4px 0 16px;
       padding: 16px;
-      border: 1px solid #d1e6f1;
+      border: 1px solid var(--border);
       border-radius: 14px;
-      background: linear-gradient(135deg, #f8fcfe, #eaf5fb);
+      background: var(--surface-soft);
     }
     .fleet-filter-heading { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 8px; }
     .fleet-filter-heading strong { color: var(--navy-deep); font-size: .94rem; }
@@ -144,16 +165,16 @@
       border: 1px solid var(--border);
       border-radius: 10px;
       background: var(--surface);
-      color: #475569;
+      color: var(--muted);
       font-size: .76rem;
-      font-weight: 750;
+      font-weight: 500;
       letter-spacing: .035em;
       text-transform: uppercase;
       transition: border-color .15s ease, box-shadow .15s ease;
     }
     .fleet-filters label:focus-within {
       border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(59, 145, 197, .14);
+      box-shadow: 0 0 0 3px var(--ring);
     }
     .fleet-filters input, .fleet-filters select {
       width: 100%;
@@ -177,7 +198,7 @@
     .fleet-filter-actions button { min-height: 40px; margin: 0; white-space: nowrap; }
     .fleet-filter-actions small {
       padding: 7px 10px;
-      border: 1px solid #d1e6f1;
+      border: 1px solid var(--border);
       border-radius: 999px;
       background: var(--accent-soft);
       color: var(--navy);
@@ -188,7 +209,7 @@
       white-space: nowrap;
     }
     button.secondary { border: 1px solid var(--border); background: var(--surface); color: var(--navy); box-shadow: none; }
-    button.secondary:hover { background: var(--accent-soft); box-shadow: 0 4px 12px rgba(23, 54, 81, .1); }
+    button.secondary:hover { background: var(--accent-soft); box-shadow: 0 4px 12px var(--shadow); }
     table { width: 100%; margin: 8px 0; border-collapse: separate; border-spacing: 0; }
     th, td {
       padding: 10px 12px;
@@ -198,7 +219,7 @@
       text-align: left;
       white-space: nowrap;
     }
-    th { background: #f1f5f9; color: var(--ink); font-weight: 700; }
+    th { background: #f3f3f3; color: var(--ink); font-weight: 500; }
     thead th { border-top: 1px solid var(--border); }
     tr > :first-child { border-left: 1px solid var(--border); }
     thead tr:first-child th:first-child { border-top-left-radius: 8px; }
@@ -208,15 +229,16 @@
     .grid-wrap { overflow-x: auto; border-radius: 9px; }
     .grid th, .grid td { text-align: center; }
     .grid td { min-width: 40px; padding: 8px 5px; }
-    .grid .busy { background: #fee2e2; color: #b91c1c; }
-    .grid .mine { background: #ccfbf1; color: #0f766e; }
-    .grid .off { background: #e2e8f0; }
+    .grid .busy { background: var(--accent-soft); color: var(--accent); }
+    .grid .mine { background: var(--accent); color: #fff; }
+    .grid .off { background: #e9e9e9; }
     small { color: var(--muted); }
     .hidden { display: none; }
-    .error { color: #b91c1c; }
+    .error { color: var(--accent); }
     @media (max-width: 640px) {
-      body { padding: 22px 12px 36px; }
-      #auth-container { margin: 28px auto; padding: 22px; }
+      body { padding: 0 12px 36px; }
+      body::before { margin: 0 -12px 20px; padding-inline: 12px; }
+      #auth-container, #verify-container { margin: 28px auto; padding: 22px; }
       .panel { padding: 12px; }
       #user-container > p:first-child { flex-wrap: wrap; }
       th, td { padding: 8px; font-size: .8rem; }
@@ -333,7 +355,7 @@
         <input id="grid-date" type="date" aria-label="Data da ocupação" onchange="watchGrid()">
       </div>
       <div class="grid-wrap"><table class="grid" id="grid"></table></div>
-      <small>Vermelho = ocupado · Verde = a sua reserva · Cinzento = veículo indisponível</small>
+      <small>Rosa = ocupado · Carmim = a sua reserva · Cinzento = veículo indisponível</small>
     </section>
 
     <section class="panel manager-only">
