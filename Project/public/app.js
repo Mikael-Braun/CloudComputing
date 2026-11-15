@@ -223,9 +223,20 @@ window.saveVehicle = async () => {
   } catch (err) { showError(err); }
 };
 
+// Erros do Firebase Auth em português; o resto passa tal como vem.
+const AUTH_ERRORS = {
+  "auth/email-already-in-use": "Já existe uma conta com este e-mail. Usa «Iniciar sessão».",
+  "auth/invalid-email": "E-mail inválido.",
+  "auth/weak-password": "A palavra-passe tem de ter pelo menos 6 caracteres.",
+  "auth/missing-password": "Indica a palavra-passe.",
+  "auth/invalid-credential": "E-mail ou palavra-passe errados.",
+  "auth/too-many-requests": "Demasiadas tentativas. Espera um pouco e tenta outra vez."
+};
+const authMessage = (err) => AUTH_ERRORS[err.code] || err.message;
+
 window.login = () => {
   signInWithEmailAndPassword(auth, $("email").value, $("password").value)
-    .catch((err) => { $("auth-error").innerText = err.message; });
+    .catch((err) => { $("auth-error").innerText = authMessage(err); });
 };
 
 // Alterna o formulário entre "Iniciar Sessão" e "Criar conta" (só este pede o nome).
@@ -246,12 +257,12 @@ window.signup = async () => {
     // O perfil é criado já, enquanto o nome escrito no formulário ainda existe.
     await setDoc(doc(db, "users", user.uid), { uid: user.uid, name: $("name").value.trim(), email: user.email, role: "passenger", createdAt: serverTimestamp() });
     await sendEmailVerification(user);
-  } catch (err) { $("auth-error").innerText = err.message; }
+  } catch (err) { $("auth-error").innerText = authMessage(err); }
 };
 
 window.resendVerification = () => sendEmailVerification(auth.currentUser)
   .then(() => { $("verify-msg").innerText = "E-mail reenviado."; })
-  .catch((err) => { $("verify-msg").innerText = err.message; });
+  .catch((err) => { $("verify-msg").innerText = authMessage(err); });
 
 window.checkVerified = async () => {
   await auth.currentUser.reload();
