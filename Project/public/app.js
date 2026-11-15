@@ -180,6 +180,8 @@ window.book = async () => {
   // Hora em UTC, como em slotNotPast() nas regras.
   if (new Date(`${date}T${timeSlot}:00Z`) <= new Date()) return showError(new Error("Esse bloco já começou. Escolha um horário futuro."));
   if ($("r-pickup").value === $("r-dropoff").value) return showError(new Error("Recolha e destino têm de ser diferentes."));
+  const vehicleName = $("r-vehicle").selectedOptions[0].text.split(" (")[0];
+  if (!confirm(`Confirmar reserva?\n\n${vehicleName}\n${date.split("-").reverse().join("/")} às ${timeSlot}\n${$("r-pickup").value} → ${$("r-dropoff").value}`)) return;
   const reservationId = `${vehicleId}_${date.replaceAll("-", "")}_${timeSlot.replace(":", "")}`;
   try {
     await setDoc(doc(db, "reservations", reservationId), {
