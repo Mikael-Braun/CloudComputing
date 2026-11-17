@@ -273,6 +273,40 @@
     .grid .busy { background: var(--accent-soft); color: var(--accent); }
     .grid .mine { background: var(--accent); color: #fff; }
     .grid .off { background: #e9e9e9; }
+    .stats-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+      gap: 12px;
+      margin: 12px 0 20px;
+    }
+    .stats-card {
+      display: grid;
+      gap: 8px;
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface-soft);
+    }
+    .stats-card span { color: var(--muted); font-size: .82rem; }
+    .stats-card strong { color: var(--navy-deep); font-size: 1.35rem; }
+    .stats-card small { font-size: .78rem; }
+    .stats-comparison { min-height: 1em; }
+    .stats-chart { max-width: 100%; overflow-x: auto; }
+    .stats-chart-svg { display: block; width: 100%; min-width: 680px; height: auto; font-family: inherit; }
+    .stats-chart-grid { stroke: var(--border); stroke-width: 1; }
+    .stats-chart-axis-label, .stats-chart-category { fill: var(--muted); font-size: 12px; }
+    .stats-trend-line { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+    .stats-trend-point { fill: var(--accent); stroke: var(--surface); stroke-width: 2; }
+    .stats-breakdown-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 24px; margin: 20px 0; }
+    .stats-breakdown-grid h4 { margin: 8px 0 12px; }
+    .stats-bar-list { display: grid; gap: 9px; }
+    .stats-bar-row { display: grid; grid-template-columns: minmax(120px, 170px) minmax(48px, 1fr) 32px; align-items: center; gap: 10px; }
+    .stats-bar-label { overflow: hidden; color: var(--muted); font-size: .82rem; text-overflow: ellipsis; white-space: nowrap; }
+    .stats-bar-track { display: block; height: 12px; overflow: hidden; border-radius: 8px; background: var(--border); }
+    .stats-bar-fill { display: block; height: 100%; min-width: 0; border-radius: inherit; background: var(--accent); }
+    .stats-bar-row strong { color: var(--navy-deep); font-size: .82rem; text-align: right; }
+    .stats-taxi-summary { overflow-x: auto; margin-top: 18px; }
+    .stats-empty { margin: 0; color: var(--muted); }
     small { color: var(--muted); }
     .hidden { display: none; }
     .error { color: var(--accent); }
@@ -287,6 +321,7 @@
       .panel-heading { align-items: flex-start; flex-direction: column; gap: 0; }
       .panel-heading input { margin-bottom: 12px; }
       .fleet-filters { grid-template-columns: 1fr; gap: 9px; padding: 12px; }
+      .stats-bar-row { grid-template-columns: minmax(90px, 120px) minmax(40px, 1fr) 28px; gap: 7px; }
       .fleet-filter-heading { display: grid; gap: 3px; }
       .fleet-filter-actions { min-height: auto; flex-wrap: wrap; }
       .fleet-filter-actions button { flex: 1; }
@@ -382,7 +417,7 @@
     </section>
 
     <section class="panel manager-only">
-      <h3 class="panel-title">Gestor: adicionar / editar veículo</h3>
+      <h3 class="panel-title">Adicionar / editar veículo</h3>
       <input id="v-id" placeholder="ID (ex.: taxi_01)">
       <input id="v-name" placeholder="Nome">
       <select id="v-status">
@@ -416,12 +451,87 @@
     </section>
 
     <section class="panel manager-only">
-      <h3 class="panel-title">Gestor: viagens do dia selecionado</h3>
+      <h3 class="panel-title">Viagens do dia selecionado</h3>
       <div class="grid-wrap"><table>
         <thead><tr><th>Bloco</th><th>Veículo</th><th>Passageiro</th><th>Recolha</th><th>Destino</th><th>Estado</th></tr></thead>
         <tbody id="day-trips"></tbody>
       </table></div>
     </section>
+
+    <section class="panel manager-only">
+      <h3 class="panel-title">Estatísticas</h3>
+      <div class="fleet-filters">
+        <label for="stats-period">Período
+          <select id="stats-period">
+            <option value="7">Últimos 7 dias</option>
+            <option value="30" selected>Últimos 30 dias</option>
+            <option value="90">Últimos 90 dias</option>
+            <option value="custom">Personalizado</option>
+          </select>
+        </label>
+        <label for="stats-date-from">Data inicial
+          <input id="stats-date-from" type="date">
+        </label>
+        <label for="stats-date-to">Data final
+          <input id="stats-date-to" type="date">
+        </label>
+        <label for="stats-vehicle-filter">Filtrar por táxi
+          <select id="stats-vehicle-filter">
+            <option value="">Todos os táxis</option>
+          </select>
+        </label>
+        <div class="fleet-filter-actions">
+          <button class="secondary" type="button" onclick="clearStatsFilters()">Limpar filtros</button>
+          <small id="stats-reservation-count" aria-live="polite"></small>
+        </div>
+      </div>
+      <div class="stats-cards" aria-live="polite">
+        <article class="stats-card">
+          <span>Total de reservas</span>
+          <strong id="stats-total">0</strong>
+          <small id="stats-period-comparison" class="stats-comparison"></small>
+        </article>
+        <article class="stats-card">
+          <span>Viagens concluídas</span>
+          <strong id="stats-completed">0</strong>
+        </article>
+        <article class="stats-card">
+          <span>Viagens em curso</span>
+          <strong id="stats-in-progress">0</strong>
+        </article>
+        <article class="stats-card">
+          <span>Média de reservas por táxi</span>
+          <strong id="stats-average-per-taxi">0,0</strong>
+          <small>Com base na frota incluída no filtro.</small>
+        </article>
+      </div>
+      <h4>Reservas ao longo do tempo</h4>
+      <div id="stats-trend-chart" class="stats-chart" aria-live="polite"></div>
+      <div class="stats-breakdown-grid">
+        <section>
+          <h4>Procura por dia da semana</h4>
+          <div id="stats-weekday-chart" class="stats-bar-list"></div>
+        </section>
+        <section>
+          <h4>Procura por hora</h4>
+          <div id="stats-hour-chart" class="stats-bar-list"></div>
+        </section>
+        <section>
+          <h4>Reservas por táxi</h4>
+          <div id="stats-taxi-chart" class="stats-bar-list"></div>
+        </section>
+      </div>
+      <h4>Resumo por táxi</h4>
+      <div class="stats-taxi-summary">
+        <table>
+          <thead><tr><th>Táxi</th><th>Total</th><th>Reservadas</th><th>Em curso</th><th>Concluídas</th></tr></thead>
+          <tbody id="stats-taxi-summary"></tbody>
+        </table>
+      </div>
+      <small>A série temporal agrupa por dia, semana ou mês conforme o intervalo. As reservas canceladas não aparecem porque são removidas do sistema.</small>
+    </section>
+
+
 
     <section class="panel passenger-only">
       <h3 class="panel-title">As minhas reservas</h3>
@@ -460,9 +570,10 @@
         <tbody id="my-reservations"></tbody>
       </table></div>
     </section>
+
   </div>
 
   <!-- O CI troca ?v= pelo commit em cada deploy: browsers com o app.js antigo em cache vão buscar o novo -->
-  <script type="module" src="app.js?v=3"></script>
+  <script type="module" src="app.js?v=5"></script>
 </body>
 </html>

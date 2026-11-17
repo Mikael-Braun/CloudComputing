@@ -30,6 +30,9 @@ const MIN_BATTERY = 20; // igual a minBattery() em firestore.rules
 const TRIP_BATTERY = 5; // % gasta em cada viagem concluída
 const STATUS = { active: "Ativo", maintenance: "Em Manutenção", inactive: "Inativo" };
 const TRIP_STATUS = { booked: "Reservada", in_progress: "Em curso", completed: "Concluída" };
+const WEEKDAYS = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"];
+const STATS_HOURS = Array.from({ length: 12 }, (_, index) => `${String(index + 8).padStart(2, "0")}h`);
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -38,6 +41,7 @@ const showError = (err) => { $("app-error").innerText = err ? err.message : ""; 
 let me = null;          // { uid, name, role }
 let vehicles = [];
 let myReservations = [];
+let managerReservations = [];
 let unsubs = [];
 let gridUnsub = null;
 let gridReservations = [];
@@ -53,6 +57,20 @@ for (const id of ["reservation-status-filter", "reservation-vehicle-filter", "re
   if (id === "reservation-search") { el.addEventListener("input", renderMyReservations); }
   else { el.addEventListener("change", renderMyReservations); }
 }
+$("stats-period").addEventListener("change", () => {
+  if ($("stats-period").value !== "custom") setStatsPeriod($("stats-period").value);
+  renderManagerStats();
+});
+$("stats-vehicle-filter").addEventListener("change", renderManagerStats);
+$("stats-date-from").addEventListener("change", () => {
+  $("stats-period").value = "custom";
+  renderManagerStats();
+});
+$("stats-date-to").addEventListener("change", () => {
+  $("stats-period").value = "custom";
+  renderManagerStats();
+});
+setStatsPeriod("30");
 const today = new Date().toISOString().slice(0, 10);
 $("r-date").value = today;
 $("r-date").min = today;
@@ -94,6 +112,12 @@ onAuthStateChanged(auth, async (user) => {
       myReservations = qs.docs.map((d) => d.data()).sort((a, b) => (a.date + a.timeSlot).localeCompare(b.date + b.timeSlot));
       renderMyReservations();
     }, showError));
+    managerReservations = [];
+  } else {
+    unsubs.push(onSnapshot(collection(db, "reservations"), (qs) => {
+      managerReservations = qs.docs.map((d) => d.data());
+      renderManagerStats();
+    }, showError));
   }
   watchGrid();
 });
@@ -130,12 +154,251 @@ function renderMyReservations() {
 
 function renderVehicleFilters() {
   const reservationVehicleFilter = $("reservation-vehicle-filter");
-  if (!reservationVehicleFilter) return;
-  const currentValue = reservationVehicleFilter.value;
   const sorted = [...new Set(vehicles.map((v) => v.vehicleId))].sort((a, b) => a.localeCompare(b));
-  reservationVehicleFilter.innerHTML = `<option value="">Todos os veículos</option>${sorted
-    .map((vehicleId) => `<option value="${esc(vehicleId)}">${esc(vehicleId)}</option>`).join("")}`;
-  if (sorted.includes(currentValue)) reservationVehicleFilter.value = currentValue;
+  if (reservationVehicleFilter) {
+    const currentValue = reservationVehicleFilter.value;
+    reservationVehicleFilter.innerHTML = `<option value="">Todos os veículos</option>${sorted
+      .map((vehicleId) => `<option value="${esc(vehicleId)}">${esc(vehicleId)}</option>`).join("")}`;
+    if (sorted.includes(currentValue)) reservationVehicleFilter.value = currentValue;
+  }
+
+  const statsVehicleFilter = $("stats-vehicle-filter");
+  if (statsVehicleFilter) {
+    const currentValue = statsVehicleFilter.value;
+    statsVehicleFilter.innerHTML = `<option value="">Todos os táxis</option>${sorted
+      .map((vehicleId) => {
+        const vehicle = vehicles.find((item) => item.vehicleId === vehicleId);
+        return `<option value="${esc(vehicleId)}">${esc(vehicle?.name || vehicleId)}</option>`;
+      }).join("")}`;
+    statsVehicleFilter.value = sorted.includes(currentValue) ? currentValue : "";
+  }
+  renderManagerStats();
+}
+
+function formatLocalDate(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function dateOrdinal(value) {
+  const [year, month, day] = value.split("-").map(Number);
+  return Date.UTC(year, month - 1, day);
+}
+
+function formatOrdinalDate(ordinal) {
+  const date = new Date(ordinal);
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+}
+
+function setStatsPeriod(days) {
+  const today = new Date();
+  const end = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const start = new Date(end);
+  start.setDate(end.getDate() - Number(days) + 1);
+  $("stats-date-from").value = formatLocalDate(start);
+  $("stats-date-to").value = formatLocalDate(end);
+}
+
+window.clearStatsFilters = () => {
+  $("stats-vehicle-filter").value = "";
+  $("stats-period").value = "30";
+  setStatsPeriod("30");
+  renderManagerStats();
+};
+
+function renderStatsBars(containerId, entries) {
+  const maximum = Math.max(1, ...entries.map((entry) => entry.value));
+  $(containerId).innerHTML = entries.map((entry) => {
+    const width = (entry.value / maximum) * 100;
+    return `<div class="stats-bar-row" role="img" aria-label="${esc(entry.label)}: ${entry.value} ${entry.value === 1 ? "reserva" : "reservas"}">
+      <span class="stats-bar-label" title="${esc(entry.label)}">${esc(entry.label)}</span>
+      <span class="stats-bar-track"><span class="stats-bar-fill" style="width:${width}%"></span></span>
+      <strong>${entry.value}</strong>
+    </div>`;
+  }).join("") || `<p class="stats-empty">Sem dados para apresentar.</p>`;
+}
+
+function buildTrendBuckets(dateFrom, dateTo, reservations) {
+  const start = dateOrdinal(dateFrom);
+  const end = dateOrdinal(dateTo);
+  const dayCount = Math.floor((end - start) / DAY_MS) + 1;
+  const unit = dayCount <= 90 ? "day" : dayCount <= 365 ? "week" : "month";
+  const buckets = [];
+
+  if (unit === "day" || unit === "week") {
+    const bucketSize = unit === "day" ? 1 : 7;
+    for (let offset = 0; offset < dayCount; offset += bucketSize) {
+      const bucketStart = start + offset * DAY_MS;
+      const bucketEnd = Math.min(end, bucketStart + (bucketSize - 1) * DAY_MS);
+      const label = unit === "day"
+        ? formatOrdinalDate(bucketStart).slice(5).replace("-", "/")
+        : `${formatOrdinalDate(bucketStart).slice(5).replace("-", "/")}–${formatOrdinalDate(bucketEnd).slice(5).replace("-", "/")}`;
+      buckets.push({ key: unit === "day" ? String(offset) : String(Math.floor(offset / bucketSize)), label, value: 0 });
+    }
+  } else {
+    const startDate = new Date(start);
+    for (let cursor = Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), 1);
+      cursor <= end;
+      cursor = Date.UTC(new Date(cursor).getUTCFullYear(), new Date(cursor).getUTCMonth() + 1, 1)) {
+      const date = new Date(cursor);
+      const key = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+      buckets.push({ key, label: `${String(date.getUTCMonth() + 1).padStart(2, "0")}/${date.getUTCFullYear()}`, value: 0 });
+    }
+  }
+
+  const bucketsByKey = new Map(buckets.map((bucket) => [bucket.key, bucket]));
+  for (const reservation of reservations) {
+    const ordinal = dateOrdinal(reservation.date);
+    if (!Number.isFinite(ordinal) || ordinal < start || ordinal > end) continue;
+    const key = unit === "month"
+      ? reservation.date.slice(0, 7)
+      : String(Math.floor((ordinal - start) / (unit === "week" ? 7 * DAY_MS : DAY_MS)));
+    const bucket = bucketsByKey.get(key);
+    if (bucket) bucket.value += 1;
+  }
+  return { buckets, unit };
+}
+
+function renderStatsTrend(dateFrom, dateTo, reservations) {
+  const { buckets, unit } = buildTrendBuckets(dateFrom, dateTo, reservations);
+  const chartWidth = 900;
+  const chartHeight = 330;
+  const plotX = 56;
+  const plotY = 28;
+  const plotWidth = 820;
+  const plotHeight = 232;
+  const maximum = Math.max(1, ...buckets.map((bucket) => bucket.value));
+  const ticks = [...new Set([0, Math.ceil(maximum / 2), maximum])];
+  const x = (index) => buckets.length < 2
+    ? plotX + plotWidth / 2
+    : plotX + (index / (buckets.length - 1)) * plotWidth;
+  const y = (value) => plotY + plotHeight - (value / maximum) * plotHeight;
+  const grid = ticks.map((tick) => `<line class="stats-chart-grid" x1="${plotX}" y1="${y(tick)}" x2="${plotX + plotWidth}" y2="${y(tick)}"></line>
+    <text class="stats-chart-axis-label" x="${plotX - 10}" y="${y(tick) + 4}" text-anchor="end">${tick}</text>`).join("");
+  const points = buckets.map((bucket, index) => `${x(index)},${y(bucket.value)}`).join(" ");
+  const markers = buckets.map((bucket, index) => `<g>
+    <title>${esc(bucket.label)}: ${bucket.value} ${bucket.value === 1 ? "reserva" : "reservas"}</title>
+    <circle class="stats-trend-point" cx="${x(index)}" cy="${y(bucket.value)}" r="3"></circle>
+  </g>`).join("");
+  const labelStep = Math.max(1, Math.ceil(buckets.length / 8));
+  const labelIndexes = [];
+  for (let index = 0; index < buckets.length; index += labelStep) labelIndexes.push(index);
+  const lastIndex = buckets.length - 1;
+  if (labelIndexes[labelIndexes.length - 1] !== lastIndex) {
+    if (buckets.length > 8 && labelIndexes[labelIndexes.length - 1] === lastIndex - 1) labelIndexes.pop();
+    labelIndexes.push(lastIndex);
+  }
+  const visibleLabels = new Set(labelIndexes);
+  const labels = buckets.map((bucket, index) => visibleLabels.has(index)
+    ? `<text class="stats-chart-category" x="${x(index)}" y="${plotY + plotHeight + 24}" text-anchor="middle">${esc(bucket.label)}</text>`
+    : "").join("");
+  $("stats-trend-chart").innerHTML = `<svg class="stats-chart-svg stats-trend-svg" role="img" aria-label="Reservas ao longo do tempo" viewBox="0 0 ${chartWidth} ${chartHeight}" xmlns="http://www.w3.org/2000/svg">
+    ${grid}
+    <polyline class="stats-trend-line" points="${points}"></polyline>
+    ${markers}${labels}
+    <text class="stats-chart-axis-label" x="14" y="${plotY + plotHeight / 2}" text-anchor="middle" transform="rotate(-90 14 ${plotY + plotHeight / 2})">Reservas</text>
+    <text class="stats-chart-axis-label" x="${plotX + plotWidth / 2}" y="${chartHeight - 8}" text-anchor="middle">${unit === "day" ? "Dia" : unit === "week" ? "Semana" : "Mês"}</text>
+  </svg>`;
+}
+
+function renderManagerStats() {
+  if (me?.role !== "manager") return;
+  const selectedVehicle = $("stats-vehicle-filter").value;
+  const dateFrom = $("stats-date-from").value;
+  const dateTo = $("stats-date-to").value;
+  const start = dateOrdinal(dateFrom);
+  const end = dateOrdinal(dateTo);
+  if (!dateFrom || !dateTo || !Number.isFinite(start) || !Number.isFinite(end) || start > end) {
+    $("stats-reservation-count").textContent = "Seleciona um intervalo de datas válido.";
+    $("stats-total").textContent = "—";
+    $("stats-completed").textContent = "—";
+    $("stats-in-progress").textContent = "—";
+    $("stats-average-per-taxi").textContent = "—";
+    $("stats-period-comparison").textContent = "";
+    $("stats-trend-chart").innerHTML = `<p class="stats-empty">Seleciona uma data inicial e final válidas para ver as estatísticas.</p>`;
+    $("stats-weekday-chart").innerHTML = "";
+    $("stats-hour-chart").innerHTML = "";
+    $("stats-taxi-chart").innerHTML = "";
+    $("stats-taxi-summary").innerHTML = "";
+    return;
+  }
+
+  const filtered = managerReservations.filter((reservation) => {
+    const ordinal = dateOrdinal(reservation.date);
+    return (!selectedVehicle || reservation.vehicleId === selectedVehicle)
+      && Number.isFinite(ordinal) && ordinal >= start && ordinal <= end;
+  });
+  const dayCount = Math.floor((end - start) / DAY_MS) + 1;
+  const previousEnd = start - DAY_MS;
+  const previousStart = previousEnd - (dayCount - 1) * DAY_MS;
+  const previousCount = managerReservations.filter((reservation) => {
+    const ordinal = dateOrdinal(reservation.date);
+    return (!selectedVehicle || reservation.vehicleId === selectedVehicle)
+      && Number.isFinite(ordinal) && ordinal >= previousStart && ordinal <= previousEnd;
+  }).length;
+  const completed = filtered.filter((reservation) => reservation.status === "completed").length;
+  const inProgress = filtered.filter((reservation) => reservation.status === "in_progress").length;
+  const visibleFleet = vehicles.filter((vehicle) => !selectedVehicle || vehicle.vehicleId === selectedVehicle);
+  const average = visibleFleet.length
+    ? (filtered.length / visibleFleet.length).toLocaleString("pt-PT", { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+    : "—";
+
+  $("stats-total").textContent = String(filtered.length);
+  $("stats-completed").textContent = String(completed);
+  $("stats-in-progress").textContent = String(inProgress);
+  $("stats-average-per-taxi").textContent = average;
+  $("stats-reservation-count").textContent = `${filtered.length} ${filtered.length === 1 ? "reserva" : "reservas"} no período`;
+  $("stats-period-comparison").textContent = previousCount
+    ? `${filtered.length - previousCount > 0 ? "+" : ""}${Math.round(((filtered.length - previousCount) / previousCount) * 100)}% vs. período anterior (${previousCount} reservas)`
+    : filtered.length ? "Sem reservas no período anterior" : "Sem reservas neste nem no período anterior";
+
+  renderStatsTrend(dateFrom, dateTo, filtered);
+  const weekdayCounts = new Map(WEEKDAYS.map((day) => [day, 0]));
+  const hourCounts = new Map(STATS_HOURS.map((hour) => [hour, 0]));
+  for (const reservation of filtered) {
+    const ordinal = dateOrdinal(reservation.date);
+    const weekday = WEEKDAYS[(new Date(ordinal).getUTCDay() + 6) % 7];
+    if (weekdayCounts.has(weekday)) weekdayCounts.set(weekday, weekdayCounts.get(weekday) + 1);
+    const hour = `${String(reservation.timeSlot || "").slice(0, 2)}h`;
+    if (hourCounts.has(hour)) hourCounts.set(hour, hourCounts.get(hour) + 1);
+  }
+  renderStatsBars("stats-weekday-chart", [...weekdayCounts].map(([label, value]) => ({ label, value })));
+  renderStatsBars("stats-hour-chart", [...hourCounts].map(([label, value]) => ({ label, value })));
+
+  const taxiStats = new Map(visibleFleet.map((vehicle) => [vehicle.vehicleId, {
+    vehicleId: vehicle.vehicleId,
+    name: vehicle.name || vehicle.vehicleId,
+    total: 0,
+    booked: 0,
+    inProgress: 0,
+    completed: 0
+  }]));
+  for (const reservation of filtered) {
+    if (!taxiStats.has(reservation.vehicleId)) {
+      taxiStats.set(reservation.vehicleId, {
+        vehicleId: reservation.vehicleId,
+        name: reservation.vehicleId || "Táxi desconhecido",
+        total: 0,
+        booked: 0,
+        inProgress: 0,
+        completed: 0
+      });
+    }
+    const taxi = taxiStats.get(reservation.vehicleId);
+    taxi.total += 1;
+    if (reservation.status === "booked") taxi.booked += 1;
+    if (reservation.status === "in_progress") taxi.inProgress += 1;
+    if (reservation.status === "completed") taxi.completed += 1;
+  }
+  const sortedTaxiStats = [...taxiStats.values()]
+    .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, "pt"));
+  renderStatsBars("stats-taxi-chart", sortedTaxiStats.map((taxi) => ({
+    label: taxi.name,
+    value: taxi.total
+  })));
+  $("stats-taxi-summary").innerHTML = sortedTaxiStats.map((taxi) => `<tr>
+    <td>${esc(taxi.name)}</td><td>${taxi.total}</td><td>${taxi.booked}</td>
+    <td>${taxi.inProgress}</td><td>${taxi.completed}</td>
+  </tr>`).join("") || `<tr><td colspan="5">Sem táxis para apresentar.</td></tr>`;
 }
 
 function renderFleet() {
