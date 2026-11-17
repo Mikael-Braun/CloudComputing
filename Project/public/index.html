@@ -216,6 +216,39 @@
       text-align: center;
       white-space: nowrap;
     }
+    .reservation-filters { margin: 4px 0 12px; }
+    .reservation-filters summary {
+      width: fit-content;
+      padding: 5px 9px;
+      border-radius: 7px;
+      color: var(--muted);
+      font-size: .82rem;
+      cursor: pointer;
+    }
+    .reservation-filters summary:hover { background: var(--surface-soft); color: var(--ink); }
+    .reservation-filters summary small { margin-left: 6px; }
+    .reservation-filters .fleet-filters {
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr));
+      gap: 8px;
+      margin: 8px 0 0;
+      padding: 10px;
+      border-radius: 10px;
+    }
+    .reservation-filters .fleet-filters label {
+      gap: 4px;
+      padding: 6px 8px;
+      font-size: .68rem;
+    }
+    .reservation-filters .fleet-filters input,
+    .reservation-filters .fleet-filters select { min-height: 34px; padding: 6px 8px; font-size: .82rem; }
+    .reservation-filters .fleet-filter-actions {
+      min-height: 0;
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+    }
+    .reservation-filters .fleet-filter-actions button { min-height: 34px; padding: 7px 12px; font-size: .7rem; }
+    .reservation-filters .fleet-filter-actions small { padding: 5px 8px; font-size: .7rem; }
     button.secondary { border: 1px solid var(--border); background: var(--surface); color: var(--navy); box-shadow: none; }
     button.secondary:hover { background: var(--accent-soft); box-shadow: 0 4px 12px var(--shadow); }
     table { width: 100%; margin: 8px 0; border-collapse: separate; border-spacing: 0; }
@@ -392,6 +425,36 @@
 
     <section class="panel passenger-only">
       <h3 class="panel-title">As minhas reservas</h3>
+      <details class="reservation-filters">
+        <summary>Filtros <small id="reservation-count" aria-live="polite"></small></summary>
+        <div class="fleet-filters">
+          <label for="reservation-status-filter">Estado
+            <select id="reservation-status-filter">
+              <option value="">Todos os estados</option>
+              <option value="booked">Reservada</option>
+              <option value="in_progress">Em curso</option>
+              <option value="completed">Concluída</option>
+            </select>
+          </label>
+          <label for="reservation-vehicle-filter">Veículo
+            <select id="reservation-vehicle-filter">
+              <option value="">Todos os veículos</option>
+            </select>
+          </label>
+          <label for="reservation-date-from">Data inicial
+            <input id="reservation-date-from" type="date">
+          </label>
+          <label for="reservation-date-to">Data final
+            <input id="reservation-date-to" type="date">
+          </label>
+          <label for="reservation-search">Pesquisa
+            <input id="reservation-search" type="search" placeholder="Veículo, recolha, destino…">
+          </label>
+          <div class="fleet-filter-actions">
+            <button class="secondary" type="button" onclick="clearReservationFilters()">Limpar</button>
+          </div>
+        </div>
+      </details>
       <div class="grid-wrap"><table>
         <thead><tr><th>Veículo</th><th>Data</th><th>Bloco</th><th>Recolha</th><th>Destino</th><th>Estado</th><th></th></tr></thead>
         <tbody id="my-reservations"></tbody>

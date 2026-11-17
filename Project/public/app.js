@@ -37,6 +37,7 @@ const showError = (err) => { $("app-error").innerText = err ? err.message : ""; 
 
 let me = null;          // { uid, name, role }
 let vehicles = [];
+let myReservations = [];
 let unsubs = [];
 let gridUnsub = null;
 let gridReservations = [];
@@ -45,6 +46,12 @@ for (const sel of document.querySelectorAll(".points")) sel.innerHTML = POINTS.m
 for (const sel of document.querySelectorAll(".slots")) sel.innerHTML = SLOTS.map((s) => `<option>${s}</option>`).join("");
 for (const id of ["fleet-search", "fleet-status-filter", "fleet-location-filter", "fleet-battery-filter"]) {
   $(id).addEventListener(id === "fleet-search" ? "input" : "change", renderFleet);
+}
+for (const id of ["reservation-status-filter", "reservation-vehicle-filter", "reservation-date-from", "reservation-date-to", "reservation-search"]) {
+  const el = $(id);
+  if (!el) continue;
+  if (id === "reservation-search") { el.addEventListener("input", renderMyReservations); }
+  else { el.addEventListener("change", renderMyReservations); }
 }
 const today = new Date().toISOString().slice(0, 10);
 $("r-date").value = today;
@@ -84,17 +91,55 @@ onAuthStateChanged(auth, async (user) => {
 
   if (!isManager) {
     unsubs.push(onSnapshot(query(collection(db, "reservations"), where("userId", "==", user.uid)), (qs) => {
-      const rows = qs.docs.map((d) => d.data()).sort((a, b) => (a.date + a.timeSlot).localeCompare(b.date + b.timeSlot));
-      $("my-reservations").innerHTML = rows.map((r) => `<tr><td>${esc(r.vehicleId)}</td><td>${esc(r.date)}</td><td>${esc(r.timeSlot)}</td>
-        <td>${esc(r.pickupPoint)}</td><td>${esc(r.dropoffPoint)}</td><td>${esc(TRIP_STATUS[r.status] || r.status)}</td>
-        <td>${r.status === "booked" ? `<button class="danger" onclick="cancelReservation('${esc(r.reservationId)}')">Cancelar</button>` : ""}</td></tr>`).join("")
-        || `<tr><td colspan="7">Sem reservas.</td></tr>`;
+      myReservations = qs.docs.map((d) => d.data()).sort((a, b) => (a.date + a.timeSlot).localeCompare(b.date + b.timeSlot));
+      renderMyReservations();
     }, showError));
   }
   watchGrid();
 });
 
+function renderMyReservations() {
+  const statusFilter = $("reservation-status-filter").value;
+  const vehicleFilter = $("reservation-vehicle-filter").value;
+  const dateFrom = $("reservation-date-from").value;
+  const dateTo = $("reservation-date-to").value;
+  const search = $("reservation-search").value.trim().toLowerCase();
+
+  if (dateFrom && dateTo && dateFrom > dateTo) {
+    $("reservation-count").textContent = "Intervalo inválido";
+    $("my-reservations").innerHTML = `<tr><td class="error" colspan="7">A data inicial não pode ser posterior à data final.</td></tr>`;
+    return;
+  }
+
+  const filtered = myReservations.filter((r) => {
+    const matchesStatus = !statusFilter || r.status === statusFilter;
+    const matchesVehicle = !vehicleFilter || r.vehicleId === vehicleFilter;
+    const matchesDateFrom = !dateFrom || r.date >= dateFrom;
+    const matchesDateTo = !dateTo || r.date <= dateTo;
+    const text = `${r.vehicleId} ${r.date} ${r.timeSlot} ${r.pickupPoint} ${r.dropoffPoint} ${TRIP_STATUS[r.status] || r.status}`.toLowerCase();
+    const matchesSearch = !search || text.includes(search);
+    return matchesStatus && matchesVehicle && matchesDateFrom && matchesDateTo && matchesSearch;
+  });
+
+  $("reservation-count").textContent = `${filtered.length} ${filtered.length === 1 ? "reserva" : "reservas"}`;
+  $("my-reservations").innerHTML = filtered.map((r) => `<tr><td>${esc(r.vehicleId)}</td><td>${esc(r.date)}</td><td>${esc(r.timeSlot)}</td>
+    <td>${esc(r.pickupPoint)}</td><td>${esc(r.dropoffPoint)}</td><td>${esc(TRIP_STATUS[r.status] || r.status)}</td>
+    <td>${r.status === "booked" ? `<button class="danger" onclick="cancelReservation('${esc(r.reservationId)}')">Cancelar</button>` : ""}</td></tr>`).join("")
+    || `<tr><td colspan="7">Sem reservas para estes filtros.</td></tr>`;
+}
+
+function renderVehicleFilters() {
+  const reservationVehicleFilter = $("reservation-vehicle-filter");
+  if (!reservationVehicleFilter) return;
+  const currentValue = reservationVehicleFilter.value;
+  const sorted = [...new Set(vehicles.map((v) => v.vehicleId))].sort((a, b) => a.localeCompare(b));
+  reservationVehicleFilter.innerHTML = `<option value="">Todos os veículos</option>${sorted
+    .map((vehicleId) => `<option value="${esc(vehicleId)}">${esc(vehicleId)}</option>`).join("")}`;
+  if (sorted.includes(currentValue)) reservationVehicleFilter.value = currentValue;
+}
+
 function renderFleet() {
+  renderVehicleFilters();
   const isManager = me?.role === "manager";
   const locationFilter = $("fleet-location-filter");
   const selectedLocation = locationFilter.value;
@@ -137,6 +182,15 @@ window.clearFleetFilters = () => {
   $("fleet-location-filter").value = "";
   $("fleet-battery-filter").value = "";
   renderFleet();
+};
+
+window.clearReservationFilters = () => {
+  $("reservation-status-filter").value = "";
+  $("reservation-vehicle-filter").value = "";
+  $("reservation-date-from").value = "";
+  $("reservation-date-to").value = "";
+  $("reservation-search").value = "";
+  renderMyReservations();
 };
 
 window.watchGrid = () => {
