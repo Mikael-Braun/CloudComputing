@@ -323,6 +323,13 @@
     .stats-export-dialog select { width: 100%; margin: 0; color: var(--ink); }
     .stats-export-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
     .stats-export-dialog-actions button { margin: 0; }
+    .feedback-list { display: grid; gap: 12px; }
+    .feedback-item { padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-soft); }
+    .feedback-item-header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+    .feedback-rating { color: var(--accent); font-weight: 700; }
+    .feedback-item p { margin: 10px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .feedback-dialog textarea { width: 100%; min-height: 110px; margin: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 9px; font: inherit; resize: vertical; }
+    .feedback-trip-details { margin: 0; color: var(--muted); font-size: .9rem; }
     small { color: var(--muted); }
     .hidden { display: none; }
     .error { color: var(--accent); }
@@ -494,6 +501,13 @@
       </table></div>
     </section>
 
+    <section class="panel manager-only">
+      <h3 class="panel-title">Feedback dos passageiros</h3>
+      <div id="manager-feedback-list" class="feedback-list" aria-live="polite">
+        <p class="stats-empty">Ainda não há feedback sobre viagens concluídas.</p>
+      </div>
+    </section>
+
     <section id="manager-stats-panel" class="panel manager-only">
       <h3 class="panel-title">Estatísticas</h3>
       <div class="fleet-filters">
@@ -622,14 +636,38 @@
         </div>
       </details>
       <div class="grid-wrap"><table>
-        <thead><tr><th>Veículo</th><th>Data</th><th>Bloco</th><th>Recolha</th><th>Destino</th><th>Estado</th><th></th></tr></thead>
+        <thead><tr><th>Veículo</th><th>Data</th><th>Bloco</th><th>Recolha</th><th>Destino</th><th>Estado</th><th></th><th>Feedback</th></tr></thead>
         <tbody id="my-reservations"></tbody>
       </table></div>
+      <p id="feedback-status" aria-live="polite"></p>
+      <dialog id="feedback-dialog" class="stats-export-dialog feedback-dialog" aria-labelledby="feedback-title">
+        <form method="dialog">
+          <h4 id="feedback-title">Avaliar viagem</h4>
+          <p id="feedback-trip-details" class="feedback-trip-details"></p>
+          <label for="feedback-rating">Classificação
+            <select id="feedback-rating" required>
+              <option value="5">5 — Excelente</option>
+              <option value="4">4 — Muito bom</option>
+              <option value="3">3 — Bom</option>
+              <option value="2">2 — Fraco</option>
+              <option value="1">1 — Mau</option>
+            </select>
+          </label>
+          <label for="feedback-comment">Comentário (opcional)
+            <textarea id="feedback-comment" maxlength="500" placeholder="O que correu bem ou podia melhorar?"></textarea>
+          </label>
+          <small>O feedback só pode ser enviado uma vez por viagem concluída. Máximo de 500 caracteres.</small>
+          <div class="stats-export-dialog-actions">
+            <button class="secondary" type="submit" value="cancel">Cancelar</button>
+            <button id="feedback-submit" type="button">Enviar feedback</button>
+          </div>
+        </form>
+      </dialog>
     </section>
 
   </div>
 
   <!-- O CI troca ?v= pelo commit em cada deploy: browsers com o app.js antigo em cache vão buscar o novo -->
-  <script type="module" src="app.js?v=6"></script>
+  <script type="module" src="app.js?v=7"></script>
 </body>
 </html>

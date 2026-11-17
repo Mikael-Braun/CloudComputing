@@ -1,7 +1,7 @@
 import { test, before, beforeEach, after } from "node:test";
 import { readFileSync } from "node:fs";
 import { initializeTestEnvironment, assertSucceeds, assertFails } from "@firebase/rules-unit-testing";
-import { doc, getDoc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 
 let env;
 // Contas com o e-mail já confirmado, como exigem as regras.
@@ -22,6 +22,13 @@ const reservation = (uid, vehicleId = "taxi_01", date = TOMORROW, timeSlot = "14
   date, timeSlot, status: "booked"
 });
 const resRef = (db, r) => doc(db, "reservations", r.reservationId);
+const feedback = (r, overrides = {}) => ({
+  reservationId: r.reservationId, userId: r.userId, vehicleId: r.vehicleId,
+  rating: 5, comment: "Viagem excelente", createdAt: serverTimestamp(), ...overrides
+});
+const feedbackRef = (db, r) => doc(db, "feedback", r.reservationId);
+const seedCompletedReservation = (r) => env.withSecurityRulesDisabled((ctx) =>
+  setDoc(doc(ctx.firestore(), "reservations", r.reservationId), { ...r, status: "completed" }));
 
 before(async () => {
   env = await initializeTestEnvironment({
@@ -150,4 +157,39 @@ test("passageiro não cancela viagem já iniciada", async () => {
   await setDoc(resRef(ana(), reservation("ana")), reservation("ana"));
   await updateDoc(resRef(gestor(), reservation("ana")), { status: "in_progress" });
   await assertFails(deleteDoc(resRef(ana(), reservation("ana"))));
+});
+
+test("passageiro avalia uma vez a sua viagem concluída", async () => {
+  const r = reservation("ana");
+  await seedCompletedReservation(r);
+  const ref = feedbackRef(ana(), r);
+  await assertSucceeds(setDoc(ref, feedback(r)));
+  await assertFails(setDoc(ref, feedback(r, { rating: 4 })));
+  await assertFails(deleteDoc(ref));
+});
+
+test("feedback só pode ser criado pelo dono de uma viagem concluída", async () => {
+  const r = reservation("ana");
+  await setDoc(resRef(ana(), r), r);
+  await assertFails(setDoc(feedbackRef(ana(), r), feedback(r)));
+  await seedCompletedReservation(r);
+  await assertFails(setDoc(feedbackRef(rui(), r), feedback(r, { userId: "rui" })));
+});
+
+test("feedback só é visível ao passageiro autor e ao gestor", async () => {
+  const r = reservation("ana");
+  await seedCompletedReservation(r);
+  await setDoc(feedbackRef(ana(), r), feedback(r));
+  await assertSucceeds(getDoc(feedbackRef(ana(), r)));
+  await assertFails(getDoc(feedbackRef(rui(), r)));
+  await assertSucceeds(getDoc(feedbackRef(gestor(), r)));
+});
+
+test("feedback rejeita classificação e comentário fora dos limites", async () => {
+  const r = reservation("ana");
+  await seedCompletedReservation(r);
+  const ref = feedbackRef(ana(), r);
+  await assertFails(setDoc(ref, feedback(r, { rating: 0 })));
+  await assertFails(setDoc(ref, feedback(r, { rating: 6 })));
+  await assertFails(setDoc(ref, feedback(r, { comment: "x".repeat(501) })));
 });

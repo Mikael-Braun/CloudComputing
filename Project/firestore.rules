@@ -18,6 +18,12 @@ service cloud.firestore {
     }
     // Abaixo disto o veículo não aceita reservas novas (precisa de carregar).
     function minBattery() { return 20; }
+    function ownsCompletedReservation(reservationId) {
+      let reservationPath = /databases/$(database)/documents/reservations/$(reservationId);
+      return exists(reservationPath)
+        && get(reservationPath).data.userId == request.auth.uid
+        && get(reservationPath).data.status == 'completed';
+    }
 
     // Perfis: cada utilizador cria o seu com role 'passenger'; o role nunca é alterado pelo cliente.
     match /users/{uid} {
@@ -74,6 +80,24 @@ service cloud.firestore {
       // Cancelar = apagar, o que liberta o bloco. O passageiro só cancela antes de a viagem começar.
       allow delete: if signedIn()
         && ((resource.data.userId == request.auth.uid && resource.data.status == 'booked') || isManager());
+    }
+
+    // Feedback: uma avaliação por viagem concluída, enviada pelo próprio passageiro.
+    match /feedback/{reservationId} {
+      allow read: if isManager() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['reservationId', 'userId', 'vehicleId', 'rating', 'comment', 'createdAt'])
+        && request.resource.data.keys().hasAll(['reservationId', 'userId', 'vehicleId', 'rating', 'comment', 'createdAt'])
+        && request.resource.data.reservationId == reservationId
+        && request.resource.data.userId == request.auth.uid
+        && ownsCompletedReservation(reservationId)
+        && request.resource.data.vehicleId == get(/databases/$(database)/documents/reservations/$(reservationId)).data.vehicleId
+        && request.resource.data.rating is int
+        && request.resource.data.rating >= 1 && request.resource.data.rating <= 5
+        && request.resource.data.comment is string
+        && request.resource.data.comment.size() <= 500
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
     }
   }
 }

@@ -43,6 +43,7 @@
 - Reserva uma viagem: recolha, destino, data e bloco de 30 min
 - Vê a **grelha de ocupação** (Veículo × Bloco Horário)
 - Consulta e cancela as suas reservas (enquanto não começaram)
+- Avalia o táxi (1–5 estrelas e comentário opcional) após uma viagem concluída
 - Recupera a palavra-passe por e-mail
 
 </td>
@@ -53,6 +54,7 @@
 - Vê a ocupação global e as viagens de cada dia
 - Consulta reservas, viagens concluídas/em curso, tendências, procura por dia/hora e utilização por táxi; filtra por período e táxi
 - Exporta as estatísticas filtradas em PDF ou CSV, ou descarrega o gráfico temporal como SVG
+- Consulta o feedback dos passageiros sobre viagens concluídas
 - Avança as viagens: **Reservada → Em curso → Concluída**
 
 </td>
@@ -82,7 +84,7 @@ flowchart LR
 | --- | --- |
 | 🌐 **Firebase Hosting** | Aloja a app num URL público |
 | 🔑 **Authentication** | Login por e-mail/palavra-passe |
-| 🗄️ **Cloud Firestore** | Utilizadores, veículos e reservas |
+| 🗄️ **Cloud Firestore** | Utilizadores, veículos, reservas e feedback |
 | 🛡️ **Security Rules** | Permissões por perfil e regras de negócio |
 | ⚙️ **GitHub Actions** | Testa as regras e publica automaticamente |
 

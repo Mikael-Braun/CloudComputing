@@ -42,6 +42,9 @@ let me = null;          // { uid, name, role }
 let vehicles = [];
 let myReservations = [];
 let managerReservations = [];
+let myFeedback = [];
+let managerFeedback = [];
+let activeFeedbackReservationId = null;
 let unsubs = [];
 let gridUnsub = null;
 let gridReservations = [];
@@ -77,6 +80,8 @@ $("stats-export-confirm").addEventListener("click", () => {
   $("stats-export-dialog").close();
   exportManagerStats(format);
 });
+$("feedback-submit").addEventListener("click", submitTripFeedback);
+$("feedback-dialog").addEventListener("close", () => { activeFeedbackReservationId = null; });
 setStatsPeriod("30");
 const today = new Date().toISOString().slice(0, 10);
 $("r-date").value = today;
@@ -89,7 +94,7 @@ onAuthStateChanged(auth, async (user) => {
   $("auth-container").classList.toggle("hidden", !!user);
   $("verify-container").classList.toggle("hidden", !user || user.emailVerified);
   $("user-container").classList.toggle("hidden", !user?.emailVerified);
-  if (!user) { me = null; return; }
+  if (!user) { me = null; myFeedback = []; managerFeedback = []; return; }
   // As regras recusam tudo a contas com e-mail por confirmar.
   if (!user.emailVerified) { $("verify-email").innerText = user.email; return; }
 
@@ -112,18 +117,31 @@ onAuthStateChanged(auth, async (user) => {
     vehicles = qs.docs.map((d) => d.data()).sort((a, b) => a.vehicleId.localeCompare(b.vehicleId));
     renderFleet();
     renderGrid();
+    renderManagerFeedback();
   }, showError));
 
   if (!isManager) {
+    myFeedback = [];
     unsubs.push(onSnapshot(query(collection(db, "reservations"), where("userId", "==", user.uid)), (qs) => {
       myReservations = qs.docs.map((d) => d.data()).sort((a, b) => (a.date + a.timeSlot).localeCompare(b.date + b.timeSlot));
       renderMyReservations();
     }, showError));
+    unsubs.push(onSnapshot(query(collection(db, "feedback"), where("userId", "==", user.uid)), (qs) => {
+      myFeedback = qs.docs.map((d) => d.data());
+      renderMyReservations();
+    }, showError));
     managerReservations = [];
+    managerFeedback = [];
   } else {
+    myFeedback = [];
     unsubs.push(onSnapshot(collection(db, "reservations"), (qs) => {
       managerReservations = qs.docs.map((d) => d.data());
       renderManagerStats();
+      renderManagerFeedback();
+    }, showError));
+    unsubs.push(onSnapshot(collection(db, "feedback"), (qs) => {
+      managerFeedback = qs.docs.map((d) => d.data());
+      renderManagerFeedback();
     }, showError));
   }
   watchGrid();
@@ -138,7 +156,7 @@ function renderMyReservations() {
 
   if (dateFrom && dateTo && dateFrom > dateTo) {
     $("reservation-count").textContent = "Intervalo inválido";
-    $("my-reservations").innerHTML = `<tr><td class="error" colspan="7">A data inicial não pode ser posterior à data final.</td></tr>`;
+    $("my-reservations").innerHTML = `<tr><td class="error" colspan="8">A data inicial não pode ser posterior à data final.</td></tr>`;
     return;
   }
 
@@ -153,10 +171,39 @@ function renderMyReservations() {
   });
 
   $("reservation-count").textContent = `${filtered.length} ${filtered.length === 1 ? "reserva" : "reservas"}`;
-  $("my-reservations").innerHTML = filtered.map((r) => `<tr><td>${esc(r.vehicleId)}</td><td>${esc(r.date)}</td><td>${esc(r.timeSlot)}</td>
+  $("my-reservations").innerHTML = filtered.map((r) => {
+    const feedback = myFeedback.find((item) => item.reservationId === r.reservationId);
+    const feedbackAction = r.status !== "completed"
+      ? "—"
+      : feedback
+        ? `<span class="feedback-rating" aria-label="Avaliação enviada: ${feedback.rating} em 5">Enviado (${feedback.rating}/5)</span>`
+        : `<button class="secondary" type="button" onclick="openTripFeedback('${esc(r.reservationId)}')">Avaliar táxi</button>`;
+    return `<tr><td>${esc(r.vehicleId)}</td><td>${esc(r.date)}</td><td>${esc(r.timeSlot)}</td>
     <td>${esc(r.pickupPoint)}</td><td>${esc(r.dropoffPoint)}</td><td>${esc(TRIP_STATUS[r.status] || r.status)}</td>
-    <td>${r.status === "booked" ? `<button class="danger" onclick="cancelReservation('${esc(r.reservationId)}')">Cancelar</button>` : ""}</td></tr>`).join("")
-    || `<tr><td colspan="7">Sem reservas para estes filtros.</td></tr>`;
+    <td>${r.status === "booked" ? `<button class="danger" onclick="cancelReservation('${esc(r.reservationId)}')">Cancelar</button>` : ""}</td>
+    <td>${feedbackAction}</td></tr>`;
+  }).join("") || `<tr><td colspan="8">Sem reservas para estes filtros.</td></tr>`;
+}
+
+function renderManagerFeedback() {
+  const container = $("manager-feedback-list");
+  if (!container) return;
+  const sorted = [...managerFeedback].sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+  container.innerHTML = sorted.map((feedback) => {
+    const reservation = managerReservations.find((item) => item.reservationId === feedback.reservationId);
+    const vehicle = vehicles.find((item) => item.vehicleId === feedback.vehicleId);
+    const rating = Math.min(5, Math.max(0, Math.round(Number(feedback.rating) || 0)));
+    const stars = `${"★".repeat(rating)}${"☆".repeat(5 - rating)}`;
+    const trip = reservation ? `${reservation.date} às ${reservation.timeSlot}` : "Viagem concluída";
+    return `<article class="feedback-item">
+      <div class="feedback-item-header">
+        <strong>${esc(vehicle?.name || feedback.vehicleId)}</strong>
+        <span>${esc(trip)}</span>
+        <span class="feedback-rating" aria-label="${rating} em 5">${stars} (${rating}/5)</span>
+      </div>
+      <p>${feedback.comment ? esc(feedback.comment) : "Sem comentário escrito."}</p>
+    </article>`;
+  }).join("") || `<p class="stats-empty">Ainda não há feedback sobre viagens concluídas.</p>`;
 }
 
 function renderVehicleFilters() {
@@ -647,6 +694,67 @@ window.cancelReservation = async (id) => {
   if (!confirm("Cancelar esta reserva?")) return;
   try { await deleteDoc(doc(db, "reservations", id)); } catch (err) { showError(err); }
 };
+
+window.openTripFeedback = (reservationId) => {
+  showError(null);
+  const reservation = myReservations.find((item) => item.reservationId === reservationId);
+  if (!reservation || reservation.status !== "completed") {
+    showError(new Error("Só podes avaliar uma viagem concluída."));
+    return;
+  }
+  if (myFeedback.some((item) => item.reservationId === reservationId)) {
+    showError(new Error("Já enviaste feedback para esta viagem."));
+    return;
+  }
+  activeFeedbackReservationId = reservationId;
+  const vehicle = vehicles.find((item) => item.vehicleId === reservation.vehicleId);
+  $("feedback-trip-details").textContent = `${vehicle?.name || reservation.vehicleId} · ${reservation.date} às ${reservation.timeSlot} · ${reservation.pickupPoint} → ${reservation.dropoffPoint}`;
+  $("feedback-rating").value = "5";
+  $("feedback-comment").value = "";
+  $("feedback-status").textContent = "";
+  $("feedback-dialog").showModal();
+};
+
+async function submitTripFeedback() {
+  showError(null);
+  const reservation = myReservations.find((item) => item.reservationId === activeFeedbackReservationId);
+  const rating = Number($("feedback-rating").value);
+  const comment = $("feedback-comment").value.trim();
+  if (!reservation || reservation.status !== "completed") {
+    showError(new Error("Só podes avaliar uma viagem concluída."));
+    return;
+  }
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5 || comment.length > 500) {
+    showError(new Error("Escolhe uma classificação entre 1 e 5 e limita o comentário a 500 caracteres."));
+    return;
+  }
+  if (myFeedback.some((item) => item.reservationId === reservation.reservationId)) {
+    showError(new Error("Já enviaste feedback para esta viagem."));
+    $("feedback-dialog").close();
+    return;
+  }
+
+  const submitButton = $("feedback-submit");
+  submitButton.disabled = true;
+  try {
+    await setDoc(doc(db, "feedback", reservation.reservationId), {
+      reservationId: reservation.reservationId,
+      userId: me.uid,
+      vehicleId: reservation.vehicleId,
+      rating,
+      comment,
+      createdAt: serverTimestamp()
+    });
+    $("feedback-status").textContent = "Obrigado! O teu feedback foi enviado.";
+    $("feedback-dialog").close();
+  } catch (err) {
+    showError(err.code === "permission-denied"
+      ? new Error("Não foi possível enviar: a viagem não está concluída ou já tem feedback.")
+      : err);
+  } finally {
+    submitButton.disabled = false;
+  }
+}
 
 window.editVehicle = (id) => {
   const v = vehicles.find((x) => x.vehicleId === id);
