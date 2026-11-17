@@ -60,7 +60,7 @@
       font-weight: 300;
       letter-spacing: -0.02em;
     }
-    #auth-container, #verify-container {
+    #auth-container, #verify-container, #reset-container {
       max-width: 430px;
       margin: 48px auto;
       padding: 30px;
@@ -70,14 +70,16 @@
       background: var(--surface);
       box-shadow: 0 20px 60px var(--shadow);
     }
-    #auth-container h3, #verify-container h3 { margin: 0 0 6px; font-size: 1.5rem; font-weight: 300; }
+    #auth-container h3, #verify-container h3, #reset-container h3 { margin: 0 0 6px; font-size: 1.5rem; font-weight: 300; }
     .auth-sub { margin: 0 0 22px; color: var(--muted); font-size: .92rem; }
     #auth-container input { margin: 6px 0; }
     #auth-container button { margin-top: 14px; min-height: 46px; }
     #auth-container a { color: var(--accent); font-size: .9rem; text-decoration: none; }
     #auth-container a:hover { text-decoration: underline; }
+    #auth-container .auth-message { color: #166534; }
     #auth-container p:last-child { margin: 18px 0 0; padding-top: 16px; border-top: 1px solid var(--border); text-align: center; }
-    #auth-container input, #auth-container button, #verify-container button { width: 100%; }
+    #auth-container input, #auth-container button, #verify-container button, #reset-container input, #reset-container button { width: 100%; }
+    #reset-container button { margin-top: 14px; min-height: 46px; }
     input, select, button {
       min-height: 42px;
       margin: 5px 3px 5px 0;
@@ -244,7 +246,7 @@
     @media (max-width: 640px) {
       body { padding: 0 12px 36px; }
       body::before { margin: 0 -12px 22px; }
-      #auth-container, #verify-container { margin: 28px auto; padding: 22px; }
+      #auth-container, #verify-container, #reset-container { margin: 28px auto; padding: 22px; }
       .panel { padding: 12px; }
       #user-container > p:first-child { flex-wrap: wrap; }
       th, td { padding: 8px; font-size: .8rem; }
@@ -270,8 +272,22 @@
     <input type="password" id="password" placeholder="Palavra-passe" required>
     <button class="login-only" onclick="login()">Entrar</button>
     <button class="signup-only hidden" onclick="signup()">Criar Conta</button>
+    <p class="login-only"><a href="#" onclick="showPasswordReset(event)">Esqueceste-te da palavra-passe?</a></p>
     <p id="auth-error" class="error"></p>
     <p><a href="#" id="auth-toggle" onclick="toggleSignup(event)">Ainda não tens conta? Criar conta</a></p>
+  </div>
+
+  <!-- Recuperação da palavra-passe -->
+  <div id="reset-container" class="hidden">
+    <h3>Recuperar palavra-passe</h3>
+    <p class="auth-sub">Indica o teu e-mail para receberes as instruções de recuperação.</p>
+    <form onsubmit="resetPassword(event)">
+      <input type="email" id="reset-email" placeholder="E-mail" autocomplete="email" required>
+      <p id="reset-error" class="error"></p>
+      <p id="reset-message" aria-live="polite"></p>
+      <button type="submit">Enviar recuperação</button>
+      <button type="button" class="secondary" onclick="returnToLogin()">Voltar atrás</button>
+    </form>
   </div>
 
   <!-- Conta criada mas e-mail por confirmar -->

@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, connectAuthEmulator, sendEmailVerification }
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, connectAuthEmulator, sendEmailVerification, sendPasswordResetEmail }
   from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, query, where, onSnapshot, serverTimestamp, connectFirestoreEmulator, writeBatch }
   from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -242,6 +242,7 @@ window.saveVehicle = async () => {
 const AUTH_ERRORS = {
   "auth/email-already-in-use": "Já existe uma conta com este e-mail. Usa «Iniciar sessão».",
   "auth/invalid-email": "E-mail inválido.",
+  "auth/missing-email": "Indica o teu e-mail.",
   "auth/weak-password": "A palavra-passe tem de ter pelo menos 6 caracteres.",
   "auth/missing-password": "Indica a palavra-passe.",
   "auth/invalid-credential": "E-mail ou palavra-passe errados.",
@@ -252,6 +253,46 @@ const authMessage = (err) => AUTH_ERRORS[err.code] || err.message;
 window.login = () => {
   signInWithEmailAndPassword(auth, $("email").value, $("password").value)
     .catch((err) => { $("auth-error").innerText = authMessage(err); });
+};
+
+window.showPasswordReset = (e) => {
+  e.preventDefault();
+  $("reset-email").value = $("email").value.trim();
+  $("reset-error").innerText = "";
+  $("reset-message").innerText = "";
+  $("auth-container").classList.add("hidden");
+  $("reset-container").classList.remove("hidden");
+  $("reset-email").focus();
+};
+
+window.returnToLogin = () => {
+  $("reset-container").classList.add("hidden");
+  $("auth-container").classList.remove("hidden");
+  $("reset-error").innerText = "";
+  $("reset-message").innerText = "";
+};
+
+window.resetPassword = async (e) => {
+  e.preventDefault();
+  const email = $("reset-email").value.trim();
+  $("reset-error").innerText = "";
+  $("reset-message").innerText = "";
+  $("auth-error").innerText = "";
+  if (!email) {
+    $("reset-error").innerText = "Indica o teu e-mail para receberes as instruções.";
+    $("reset-email").focus();
+    return;
+  }
+  try {
+    await sendPasswordResetEmail(auth, email);
+    $("reset-message").innerText = "Se existir uma conta associada a este e-mail, receberás instruções para redefinir a palavra-passe.";
+  } catch (err) {
+    if (err.code === "auth/user-not-found") {
+      $("reset-message").innerText = "Se existir uma conta associada a este e-mail, receberás instruções para redefinir a palavra-passe.";
+      return;
+    }
+    $("reset-error").innerText = authMessage(err);
+  }
 };
 
 // Alterna o formulário entre "Iniciar Sessão" e "Criar conta" (só este pede o nome).

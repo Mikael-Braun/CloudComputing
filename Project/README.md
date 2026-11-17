@@ -43,6 +43,7 @@
 - Reserva uma viagem: recolha, destino, data e bloco de 30 min
 - Vê a **grelha de ocupação** (Veículo × Bloco Horário)
 - Consulta e cancela as suas reservas (enquanto não começaram)
+- Recupera a palavra-passe por e-mail
 
 </td>
 <td>
