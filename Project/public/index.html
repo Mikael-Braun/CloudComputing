@@ -307,6 +307,22 @@
     .stats-bar-row strong { color: var(--navy-deep); font-size: .82rem; text-align: right; }
     .stats-taxi-summary { overflow-x: auto; margin-top: 18px; }
     .stats-empty { margin: 0; color: var(--muted); }
+    .stats-export-actions { display: flex; justify-content: flex-end; margin-top: 18px; }
+    .stats-export-dialog {
+      width: min(420px, calc(100% - 32px));
+      padding: 22px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--surface);
+      color: var(--ink);
+      box-shadow: 0 20px 60px var(--shadow);
+    }
+    .stats-export-dialog::backdrop { background: rgba(0, 0, 0, .45); }
+    .stats-export-dialog h4 { margin: 0 0 16px; }
+    .stats-export-dialog label { display: grid; gap: 6px; color: var(--muted); }
+    .stats-export-dialog select { width: 100%; margin: 0; color: var(--ink); }
+    .stats-export-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+    .stats-export-dialog-actions button { margin: 0; }
     small { color: var(--muted); }
     .hidden { display: none; }
     .error { color: var(--accent); }
@@ -325,6 +341,26 @@
       .fleet-filter-heading { display: grid; gap: 3px; }
       .fleet-filter-actions { min-height: auto; flex-wrap: wrap; }
       .fleet-filter-actions button { flex: 1; }
+    }
+    @page { size: A4 landscape; margin: 12mm; }
+    @media print {
+      body.printing-stats::before { display: none !important; }
+      body.printing-stats * { visibility: hidden !important; }
+      body.printing-stats #manager-stats-panel,
+      body.printing-stats #manager-stats-panel * { visibility: visible !important; }
+      body.printing-stats #manager-stats-panel {
+        position: absolute !important;
+        top: 0;
+        left: 0;
+        width: 100%;
+        margin: 0;
+        border: 0;
+        box-shadow: none;
+      }
+      body.printing-stats .stats-export-actions,
+      body.printing-stats #stats-export-dialog { display: none !important; }
+      body.printing-stats .stats-chart { overflow: visible; }
+      body.printing-stats .stats-chart-svg { width: 100%; min-width: 0; }
     }
   </style>
 </head>
@@ -458,7 +494,7 @@
       </table></div>
     </section>
 
-    <section class="panel manager-only">
+    <section id="manager-stats-panel" class="panel manager-only">
       <h3 class="panel-title">Estatísticas</h3>
       <div class="fleet-filters">
         <label for="stats-period">Período
@@ -529,6 +565,26 @@
         </table>
       </div>
       <small>A série temporal agrupa por dia, semana ou mês conforme o intervalo. As reservas canceladas não aparecem porque são removidas do sistema.</small>
+      <div class="stats-export-actions">
+        <button id="stats-export-open" class="secondary" type="button" disabled>Exportar</button>
+      </div>
+      <dialog id="stats-export-dialog" class="stats-export-dialog" aria-labelledby="stats-export-title">
+        <form method="dialog">
+          <h4 id="stats-export-title">Exportar estatísticas</h4>
+          <label for="stats-export-format">Formato
+            <select id="stats-export-format">
+              <option value="pdf">PDF — relatório com gráfico e tabelas</option>
+              <option value="csv">CSV — dados das estatísticas</option>
+              <option value="svg">Imagem SVG — gráfico temporal</option>
+            </select>
+          </label>
+          <small>Para PDF, escolhe “Guardar como PDF” na janela de impressão do navegador.</small>
+          <div class="stats-export-dialog-actions">
+            <button class="secondary" type="submit" value="cancel">Cancelar</button>
+            <button id="stats-export-confirm" type="button">Exportar</button>
+          </div>
+        </form>
+      </dialog>
     </section>
 
 
@@ -574,6 +630,6 @@
   </div>
 
   <!-- O CI troca ?v= pelo commit em cada deploy: browsers com o app.js antigo em cache vão buscar o novo -->
-  <script type="module" src="app.js?v=5"></script>
+  <script type="module" src="app.js?v=6"></script>
 </body>
 </html>

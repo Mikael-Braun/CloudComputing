@@ -52,6 +52,7 @@
 - Muda o estado: **Ativo · Em Manutenção · Inativo**
 - Vê a ocupação global e as viagens de cada dia
 - Consulta reservas, viagens concluídas/em curso, tendências, procura por dia/hora e utilização por táxi; filtra por período e táxi
+- Exporta as estatísticas filtradas em PDF ou CSV, ou descarrega o gráfico temporal como SVG
 - Avança as viagens: **Reservada → Em curso → Concluída**
 
 </td>

@@ -45,6 +45,7 @@ let managerReservations = [];
 let unsubs = [];
 let gridUnsub = null;
 let gridReservations = [];
+let managerStatsExportData = null;
 
 for (const sel of document.querySelectorAll(".points")) sel.innerHTML = POINTS.map((p) => `<option>${esc(p)}</option>`).join("");
 for (const sel of document.querySelectorAll(".slots")) sel.innerHTML = SLOTS.map((s) => `<option>${s}</option>`).join("");
@@ -69,6 +70,12 @@ $("stats-date-from").addEventListener("change", () => {
 $("stats-date-to").addEventListener("change", () => {
   $("stats-period").value = "custom";
   renderManagerStats();
+});
+$("stats-export-open").addEventListener("click", () => $("stats-export-dialog").showModal());
+$("stats-export-confirm").addEventListener("click", () => {
+  const format = $("stats-export-format").value;
+  $("stats-export-dialog").close();
+  exportManagerStats(format);
 });
 setStatsPeriod("30");
 const today = new Date().toISOString().slice(0, 10);
@@ -258,8 +265,8 @@ function buildTrendBuckets(dateFrom, dateTo, reservations) {
   return { buckets, unit };
 }
 
-function renderStatsTrend(dateFrom, dateTo, reservations) {
-  const { buckets, unit } = buildTrendBuckets(dateFrom, dateTo, reservations);
+function renderStatsTrend(dateFrom, dateTo, reservations, trendData = buildTrendBuckets(dateFrom, dateTo, reservations)) {
+  const { buckets, unit } = trendData;
   const chartWidth = 900;
   const chartHeight = 330;
   const plotX = 56;
@@ -308,6 +315,8 @@ function renderManagerStats() {
   const start = dateOrdinal(dateFrom);
   const end = dateOrdinal(dateTo);
   if (!dateFrom || !dateTo || !Number.isFinite(start) || !Number.isFinite(end) || start > end) {
+    managerStatsExportData = null;
+    $("stats-export-open").disabled = true;
     $("stats-reservation-count").textContent = "Seleciona um intervalo de datas válido.";
     $("stats-total").textContent = "—";
     $("stats-completed").textContent = "—";
@@ -347,11 +356,13 @@ function renderManagerStats() {
   $("stats-in-progress").textContent = String(inProgress);
   $("stats-average-per-taxi").textContent = average;
   $("stats-reservation-count").textContent = `${filtered.length} ${filtered.length === 1 ? "reserva" : "reservas"} no período`;
-  $("stats-period-comparison").textContent = previousCount
+  const comparison = previousCount
     ? `${filtered.length - previousCount > 0 ? "+" : ""}${Math.round(((filtered.length - previousCount) / previousCount) * 100)}% vs. período anterior (${previousCount} reservas)`
     : filtered.length ? "Sem reservas no período anterior" : "Sem reservas neste nem no período anterior";
+  $("stats-period-comparison").textContent = comparison;
 
-  renderStatsTrend(dateFrom, dateTo, filtered);
+  const trendData = buildTrendBuckets(dateFrom, dateTo, filtered);
+  renderStatsTrend(dateFrom, dateTo, filtered, trendData);
   const weekdayCounts = new Map(WEEKDAYS.map((day) => [day, 0]));
   const hourCounts = new Map(STATS_HOURS.map((hour) => [hour, 0]));
   for (const reservation of filtered) {
@@ -361,8 +372,10 @@ function renderManagerStats() {
     const hour = `${String(reservation.timeSlot || "").slice(0, 2)}h`;
     if (hourCounts.has(hour)) hourCounts.set(hour, hourCounts.get(hour) + 1);
   }
-  renderStatsBars("stats-weekday-chart", [...weekdayCounts].map(([label, value]) => ({ label, value })));
-  renderStatsBars("stats-hour-chart", [...hourCounts].map(([label, value]) => ({ label, value })));
+  const weekdayStats = [...weekdayCounts].map(([label, value]) => ({ label, value }));
+  const hourStats = [...hourCounts].map(([label, value]) => ({ label, value }));
+  renderStatsBars("stats-weekday-chart", weekdayStats);
+  renderStatsBars("stats-hour-chart", hourStats);
 
   const taxiStats = new Map(visibleFleet.map((vehicle) => [vehicle.vehicleId, {
     vehicleId: vehicle.vehicleId,
@@ -399,6 +412,114 @@ function renderManagerStats() {
     <td>${esc(taxi.name)}</td><td>${taxi.total}</td><td>${taxi.booked}</td>
     <td>${taxi.inProgress}</td><td>${taxi.completed}</td>
   </tr>`).join("") || `<tr><td colspan="5">Sem táxis para apresentar.</td></tr>`;
+  const selectedVehicleData = visibleFleet.find((vehicle) => vehicle.vehicleId === selectedVehicle);
+  managerStatsExportData = {
+    dateFrom,
+    dateTo,
+    vehicleName: selectedVehicle
+      ? selectedVehicleData?.name || selectedVehicle
+      : "Todos os táxis",
+    total: filtered.length,
+    completed,
+    inProgress,
+    average,
+    comparison,
+    trendUnit: trendData.unit,
+    trendBuckets: trendData.buckets.map(({ label, value }) => ({ label, value })),
+    weekdayStats,
+    hourStats,
+    taxiStats: sortedTaxiStats.map((taxi) => ({ ...taxi }))
+  };
+  $("stats-export-open").disabled = false;
+}
+
+function downloadStatsFile(filename, content, type) {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function csvCell(value) {
+  let text = String(value ?? "");
+  if (/^[\s]*[=+\-@]/.test(text)) text = `'${text}`;
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function exportStatsCsv(data) {
+  const rows = [
+    ["Secção", "Categoria", "Indicador", "Valor"],
+    ["Filtros", "Período", "Data inicial", data.dateFrom],
+    ["Filtros", "Período", "Data final", data.dateTo],
+    ["Filtros", "Táxi", "Selecionado", data.vehicleName],
+    ["Resumo", "Reservas", "Total", data.total],
+    ["Resumo", "Viagens", "Concluídas", data.completed],
+    ["Resumo", "Viagens", "Em curso", data.inProgress],
+    ["Resumo", "Reservas", "Média por táxi", data.average],
+    ["Resumo", "Período anterior", "Comparação", data.comparison],
+    ...data.trendBuckets.map((bucket) => ["Série temporal", bucket.label, "Reservas", bucket.value]),
+    ...data.weekdayStats.map((entry) => ["Procura por dia da semana", entry.label, "Reservas", entry.value]),
+    ...data.hourStats.map((entry) => ["Procura por hora", entry.label, "Reservas", entry.value]),
+    ...data.taxiStats.flatMap((taxi) => [
+      ["Resumo por táxi", taxi.name, "Total", taxi.total],
+      ["Resumo por táxi", taxi.name, "Reservadas", taxi.booked],
+      ["Resumo por táxi", taxi.name, "Em curso", taxi.inProgress],
+      ["Resumo por táxi", taxi.name, "Concluídas", taxi.completed]
+    ])
+  ];
+  const csv = `\uFEFF${rows.map((row) => row.map(csvCell).join(";")).join("\r\n")}`;
+  downloadStatsFile(`estatisticas-${data.dateFrom}-${data.dateTo}.csv`, csv, "text/csv;charset=utf-8");
+}
+
+function exportStatsChartSvg(data) {
+  const source = $("stats-trend-chart").querySelector("svg");
+  if (!source) {
+    showError(new Error("Não foi possível encontrar o gráfico para exportar."));
+    return;
+  }
+  const svg = source.cloneNode(true);
+  const styleRules = [
+    ["stats-chart-svg", ["font-family"]],
+    ["stats-chart-grid", ["stroke", "stroke-width"]],
+    ["stats-chart-axis-label", ["fill", "font-size"]],
+    ["stats-chart-category", ["fill", "font-size"]],
+    ["stats-trend-line", ["fill", "stroke", "stroke-width", "stroke-linejoin", "stroke-linecap"]],
+    ["stats-trend-point", ["fill", "stroke", "stroke-width"]]
+  ].map(([className, properties]) => {
+    const element = className === "stats-chart-svg" ? source : source.querySelector(`.${className}`);
+    if (!element) return "";
+    const computed = getComputedStyle(element);
+    const declarations = properties.map((property) => `${property}:${computed.getPropertyValue(property)}`).join(";");
+    return `.${className}{${declarations}}`;
+  }).filter(Boolean).join("\n");
+  const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
+  style.textContent = styleRules;
+  svg.insertBefore(style, svg.firstChild);
+  const content = new XMLSerializer().serializeToString(svg);
+  downloadStatsFile(`grafico-estatisticas-${data.dateFrom}-${data.dateTo}.svg`, content, "image/svg+xml;charset=utf-8");
+}
+
+function exportManagerStats(format) {
+  if (!managerStatsExportData) {
+    showError(new Error("Seleciona um intervalo de datas válido antes de exportar."));
+    return;
+  }
+  showError(null);
+  if (format === "pdf") {
+    document.body.classList.add("printing-stats");
+    window.addEventListener("afterprint", () => document.body.classList.remove("printing-stats"), { once: true });
+    window.print();
+  } else if (format === "csv") {
+    exportStatsCsv(managerStatsExportData);
+  } else if (format === "svg") {
+    exportStatsChartSvg(managerStatsExportData);
+  } else {
+    showError(new Error("Formato de exportação desconhecido."));
+  }
 }
 
 function renderFleet() {
