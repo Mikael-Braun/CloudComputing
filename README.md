@@ -132,7 +132,7 @@ The research report and presentation will be added to this repository when finis
 * 🔑 **Firebase Authentication:** User authentication
 * 🛡️ **Firestore Security Rules:** Authorization and data protection
 * ⚙️ **GitHub Actions:** Automated testing and deployment on every push to `main`
-* 🧪 **Firebase Local Emulator Suite:** Local development and security-rule testing (34 automated tests)
+* 🧪 **Firebase Local Emulator Suite:** Local development and security-rule testing (38 automated tests)
 
 The application includes role-based access with:
 
