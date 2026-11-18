@@ -113,7 +113,7 @@ Depois abre **http://localhost:5000** e entra com uma das contas de [`tests/seed
 
 | Comando | O que faz |
 | --- | --- |
-| `npm test` | Corre os 50 testes das Security Rules no emulador |
+| `npm test` | Corre os 61 testes das Security Rules no emulador |
 | `npm run serve` | Arranca os emuladores e serve a app em `localhost:5000` |
 | `npm run seed` | Carrega dados de teste (com `serve` a correr) |
 
@@ -159,14 +159,14 @@ As regras em [`firestore.rules`](firestore.rules) garantem as regras de negócio
 
 ### 🧪 Testes
 
-Os [50 testes](tests/rules.test.js) correm no **Firebase Emulator** com `@firebase/rules-unit-testing` e cobrem cada regra acima, nos casos permitidos e nos casos recusados.
+Os [61 testes](tests/rules.test.js) correm no **Firebase Emulator** com `@firebase/rules-unit-testing` e cobrem cada regra acima, nos casos permitidos e nos casos recusados.
 
 ```text
 ✔ não há sobreposição: segundo passageiro no mesmo bloco falha
 ✔ utilizador não se autopromove a manager ao criar
 ✔ passageiro não cancela viagem já iniciada
 ✔ reserva com data passada é rejeitada
-  … 50 testes, 0 falhas
+  … 61 testes, 0 falhas
 ```
 
 ### 🧱 Cabeçalhos de segurança
@@ -229,7 +229,7 @@ erDiagram
 Cada **push para `main`** dispara o workflow [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml):
 
 ```text
-push main ──► npm ci ──► npm test (50 testes) ──► app.js?v=<commit> ──► firebase deploy (Hosting + Rules)
+push main ──► npm ci ──► npm test (61 testes) ──► app.js?v=<commit> ──► firebase deploy (Hosting + Rules)
                               │
                               └── ❌ se algum teste falhar, nada é publicado
 ```
@@ -267,7 +267,7 @@ Project/
 │   ├── index.html            ← interface (passageiro + gestor)
 │   └── app.js                ← lógica e ligação ao Firebase
 └── 🧪 tests/
-    ├── rules.test.js         ← 50 testes das Security Rules
+    ├── rules.test.js         ← 61 testes das Security Rules
     └── seed.js               ← dados de teste para os emuladores
 ```
 

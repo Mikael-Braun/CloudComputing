@@ -903,6 +903,8 @@ window.setTripStatus = async (id, status) => {
   } catch (err) { showError(err); }
 };
 
+const userSlotId = (uid, date, timeSlot) => `${uid}_${date.replaceAll("-", "")}_${timeSlot.replace(":", "")}`;
+
 window.book = async () => {
   showError(null);
   const vehicleId = $("r-vehicle").value;
@@ -913,6 +915,9 @@ window.book = async () => {
   if (!vehicleId || !date || !timeSlot) return showError(new Error("Escolhe um veículo disponível, uma data e uma hora."));
   if (slotPast(date, timeSlot)) return showError(new Error("Esse bloco já começou. Escolhe um horário futuro."));
   if (pickupPoint === dropoffPoint) return showError(new Error("Recolha e destino têm de ser diferentes."));
+  // Um passageiro não pode estar em dois táxis à mesma hora (as regras também o recusam).
+  const clash = myReservations.find((r) => r.date === date && r.timeSlot === timeSlot && r.status !== "completed");
+  if (clash) return showError(new Error(`Já tens uma viagem nesse dia às ${timeSlot} (${vehicleName(clash.vehicleId)}). Escolhe outra hora.`));
   const confirmed = await ask("Confirmar reserva?", `<dl class="summary-list">
     <dt>Veículo</dt><dd>${esc(vehicleName(vehicleId))}</dd>
     <dt>Quando</dt><dd>${esc(formatDisplayDate(date))} às ${esc(timeSlot)} (30 min)</dd>
@@ -927,11 +932,12 @@ window.book = async () => {
       pickupPoint, dropoffPoint, date, timeSlot, status: "booked", createdAt: serverTimestamp()
     });
     batch.set(doc(db, "slots", reservationId), { vehicleId, date, timeSlot });
+    batch.set(doc(db, "userSlots", userSlotId(me.uid, date, timeSlot)), { userId: me.uid, reservationId });
     await batch.commit();
     toast(`Reserva confirmada: ${vehicleName(vehicleId)}, ${formatDisplayDate(date)} às ${timeSlot}.`);
   } catch (err) {
     // ID determinístico: se o bloco já existe, as Security Rules recusam.
-    showError(err.code === "permission-denied" ? new Error("Bloco já ocupado ou veículo indisponível.") : err);
+    showError(err.code === "permission-denied" ? new Error("Bloco já ocupado, veículo indisponível ou já tens uma viagem a essa hora.") : err);
   }
 };
 
@@ -944,6 +950,7 @@ window.cancelReservation = async (id) => {
     const batch = writeBatch(db);
     batch.delete(doc(db, "reservations", id));
     batch.delete(doc(db, "slots", id));
+    if (r) batch.delete(doc(db, "userSlots", userSlotId(r.userId || me.uid, r.date, r.timeSlot)));
     await batch.commit();
     toast("Reserva cancelada.");
   } catch (err) { showError(err); }
