@@ -48,6 +48,7 @@ await env.withSecurityRulesDisabled(async (ctx) => {
   for (const { rating, comment, ...t } of TRIPS) {
     const reservationId = `${t.vehicleId}_${t.date.replaceAll("-", "")}_${t.timeSlot.replace(":", "")}`;
     await setDoc(doc(db, "reservations", reservationId), { ...t, reservationId, userId: passenger.uid, passengerName: passenger.name, createdAt: new Date() });
+    await setDoc(doc(db, "slots", reservationId), { vehicleId: t.vehicleId, date: t.date, timeSlot: t.timeSlot });
     if (rating) await setDoc(doc(db, "feedback", reservationId), { reservationId, userId: passenger.uid, vehicleId: t.vehicleId, rating, comment, createdAt: new Date() });
   }
 });
