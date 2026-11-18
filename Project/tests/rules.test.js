@@ -24,8 +24,11 @@ const reservation = (uid, vehicleId = "taxi_01", date = TOMORROW, timeSlot = "14
 const slotRef = (db, r) => doc(db, "slots", r.reservationId);
 const slotOf = (r) => ({ vehicleId: r.vehicleId, date: r.date, timeSlot: r.timeSlot });
 // Reserva + bloco público no mesmo batch, como faz a app.
-const book = (db, r) => writeBatch(db).set(resRef(db, r), r).set(slotRef(db, r), slotOf(r)).commit();
-const cancel = (db, r) => writeBatch(db).delete(resRef(db, r)).delete(slotRef(db, r)).commit();
+const userSlotRef = (db, r) => doc(db, "userSlots", `${r.userId}_${r.date.replaceAll("-", "")}_${r.timeSlot.replace(":", "")}`);
+const userSlotOf = (r) => ({ userId: r.userId, reservationId: r.reservationId });
+// Reserva + bloco público + marca do passageiro no mesmo batch, como faz a app.
+const book = (db, r) => writeBatch(db).set(resRef(db, r), r).set(slotRef(db, r), slotOf(r)).set(userSlotRef(db, r), userSlotOf(r)).commit();
+const cancel = (db, r) => writeBatch(db).delete(resRef(db, r)).delete(slotRef(db, r)).delete(userSlotRef(db, r)).commit();
 const resRef = (db, r) => doc(db, "reservations", r.reservationId);
 const feedback = (r, overrides = {}) => ({
   reservationId: r.reservationId, userId: r.userId, vehicleId: r.vehicleId,
@@ -248,7 +251,7 @@ test("reserva e bloco público só existem juntos", async () => {
 test("bloco público tem de coincidir com a reserva", async () => {
   const r = reservation("ana");
   const db = ana();
-  await assertFails(writeBatch(db).set(resRef(db, r), r).set(slotRef(db, r), { ...slotOf(r), timeSlot: "09:00" }).commit());
+  await assertFails(writeBatch(db).set(resRef(db, r), r).set(slotRef(db, r), { ...slotOf(r), timeSlot: "09:00" }).set(userSlotRef(db, r), userSlotOf(r)).commit());
 });
 test("gestor cria o bloco público de uma reserva antiga e limpa blocos órfãos", async () => {
   const r = reservation("ana");
@@ -281,4 +284,57 @@ test("veículo: nome e localização com tamanho limitado", async () => {
   await assertFails(updateDoc(doc(gestor(), "vehicles/taxi_01"), { name: "x".repeat(61) }));
   await assertFails(updateDoc(doc(gestor(), "vehicles/taxi_01"), { currentLocation: { a: 1 } }));
   await assertFails(updateDoc(doc(gestor(), "vehicles/taxi_01"), { currentLocation: "y".repeat(61) }));
+});
+
+// userSlots: o mesmo passageiro não tem duas viagens à mesma hora
+test("passageiro não reserva dois veículos para a mesma hora", async () => {
+  await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), "vehicles/taxi_03"), vehicle("taxi_03")));
+  await assertSucceeds(book(ana(), reservation("ana")));
+  await assertFails(book(ana(), reservation("ana", "taxi_03")));
+});
+test("passageiro reserva dois veículos em horas diferentes", async () => {
+  await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), "vehicles/taxi_03"), vehicle("taxi_03")));
+  await assertSucceeds(book(ana(), reservation("ana")));
+  await assertSucceeds(book(ana(), reservation("ana", "taxi_03", TOMORROW, "15:00")));
+});
+test("dois passageiros reservam veículos diferentes para a mesma hora", async () => {
+  await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), "vehicles/taxi_03"), vehicle("taxi_03")));
+  await assertSucceeds(book(ana(), reservation("ana")));
+  await assertSucceeds(book(rui(), reservation("rui", "taxi_03")));
+});
+test("reserva sem a marca do passageiro é recusada", () => {
+  const db = ana(), r = reservation("ana");
+  return assertFails(writeBatch(db).set(resRef(db, r), r).set(slotRef(db, r), slotOf(r)).commit());
+});
+test("marca do passageiro sem reserva é recusada", () => {
+  const db = ana(), r = reservation("ana");
+  return assertFails(setDoc(userSlotRef(db, r), userSlotOf(r)));
+});
+test("não se cria a marca em nome de outro passageiro", async () => {
+  const db = ana(), r = reservation("ana"), deRui = reservation("rui");
+  await assertFails(writeBatch(db).set(resRef(db, r), r).set(slotRef(db, r), slotOf(r)).set(userSlotRef(db, deRui), userSlotOf(r)).commit());
+});
+test("depois de cancelar, o passageiro volta a poder reservar essa hora", async () => {
+  await env.withSecurityRulesDisabled((ctx) => setDoc(doc(ctx.firestore(), "vehicles/taxi_03"), vehicle("taxi_03")));
+  await book(ana(), reservation("ana"));
+  await assertSucceeds(cancel(ana(), reservation("ana")));
+  await assertSucceeds(book(ana(), reservation("ana", "taxi_03")));
+});
+test("cancelar sem apagar a marca do passageiro é recusado", async () => {
+  const db = ana(), r = reservation("ana");
+  await book(db, r);
+  await assertFails(writeBatch(db).delete(resRef(db, r)).delete(slotRef(db, r)).commit());
+});
+test("gestor cancela reserva e liberta a hora do passageiro", async () => {
+  await book(ana(), reservation("ana"));
+  await assertSucceeds(cancel(gestor(), reservation("ana")));
+});
+test("reserva antiga sem marca continua a poder ser cancelada", async () => {
+  const r = reservation("ana");
+  await env.withSecurityRulesDisabled(async (ctx) => { const db = ctx.firestore(); await setDoc(doc(db, "reservations", r.reservationId), r); await setDoc(doc(db, "slots", r.reservationId), slotOf(r)); });
+  await assertSucceeds(cancel(ana(), r));
+});
+test("outro passageiro não lê as marcas alheias", async () => {
+  await book(ana(), reservation("ana"));
+  await assertFails(getDoc(userSlotRef(rui(), reservation("ana"))));
 });

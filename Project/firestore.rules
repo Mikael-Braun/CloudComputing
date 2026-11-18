@@ -67,6 +67,10 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    function userSlotPath(uid, date, timeSlot) {
+      return /databases/$(database)/documents/userSlots/$(uid + '_' + date.replace('-', '') + '_' + timeSlot.replace(':', ''));
+    }
+
     // Reservas: ID determinístico veiculo_data_bloco impede sobreposição
     // (um create sobre um ID existente é rejeitado pelo próprio Firestore).
     match /reservations/{reservationId} {
@@ -82,6 +86,10 @@ service cloud.firestore {
         && withinHorizon(request.resource.data.date)
         // A reserva e o bloco público nascem no mesmo batch: ou os dois ou nenhum.
         && existsAfter(/databases/$(database)/documents/slots/$(reservationId))
+        // O mesmo passageiro não tem duas viagens à mesma hora: a marca uid_data_bloco nasce no mesmo batch
+        // e, como o ID é determinístico, uma segunda reserva para a mesma hora (noutro veículo) é recusada.
+        && existsAfter(userSlotPath(request.auth.uid, request.resource.data.date, request.resource.data.timeSlot))
+        && getAfter(userSlotPath(request.auth.uid, request.resource.data.date, request.resource.data.timeSlot)).data.reservationId == reservationId
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.status == 'booked'
         && request.resource.data.reservationId == reservationId
@@ -107,7 +115,30 @@ service cloud.firestore {
       allow delete: if signedIn()
         && ((resource.data.userId == request.auth.uid && resource.data.status == 'booked')
           || (isManager() && resource.data.status != 'completed'))
-        && !existsAfter(/databases/$(database)/documents/slots/$(reservationId));
+        && !existsAfter(/databases/$(database)/documents/slots/$(reservationId))
+        && !existsAfter(userSlotPath(resource.data.userId, resource.data.date, resource.data.timeSlot));
+    }
+
+    // Marca privada "este passageiro já tem viagem neste dia e hora" (ID uid_data_bloco).
+    match /userSlots/{userSlotId} {
+      allow read: if signedIn() && (resource.data.userId == request.auth.uid || isManager());
+      // Só nasce com a reserva correspondente, no mesmo batch, e só para o próprio.
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['userId', 'reservationId'])
+        && request.resource.data.keys().hasAll(['userId', 'reservationId'])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.reservationId is string
+        && existsAfter(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId))
+        && getAfter(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.userId == request.auth.uid
+        && userSlotId == request.auth.uid + '_'
+             + getAfter(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.date.replace('-', '') + '_'
+             + getAfter(/databases/$(database)/documents/reservations/$(request.resource.data.reservationId)).data.timeSlot.replace(':', '');
+      allow update: if false;
+      // Sai com a reserva (cancelamento pelo dono ou pelo gestor). Reservas antigas não têm marca: apagar o que não existe é inócuo.
+      allow delete: if signedIn()
+        && (resource == null
+          || ((resource.data.userId == request.auth.uid || isManager())
+            && !existsAfter(/databases/$(database)/documents/reservations/$(resource.data.reservationId))));
     }
 
     // Ocupação pública: um documento por bloco reservado, sem dados pessoais (só veículo, data e hora).
