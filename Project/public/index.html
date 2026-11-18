@@ -17,16 +17,16 @@
       text-rendering: optimizeLegibility;
       /* Cores do ISLA Gaia (islagaia.pt) */
       --ink: #292929;
-      --navy: #a50624;
-      --navy-deep: #7d0419;
-      --accent: #a50624;
-      --accent-dark: #7d0419;
-      --accent-soft: #fbeef0;
+      --navy: #8f2d3d;
+      --navy-deep: #67202c;
+      --accent: #8f2d3d;
+      --accent-dark: #67202c;
+      --accent-soft: #f5ecee;
       --muted: #6b6b6b;
       --border: #e4e4e4;
       --surface: #fff;
       --surface-soft: #f8f8f8;
-      --ring: rgba(165, 6, 36, .16);
+      --ring: rgba(143, 45, 61, .16);
       --shadow: rgba(0, 0, 0, .08);
     }
     * { box-sizing: border-box; }
@@ -249,6 +249,38 @@
     }
     .reservation-filters .fleet-filter-actions button { min-height: 34px; padding: 7px 12px; font-size: .7rem; }
     .reservation-filters .fleet-filter-actions small { padding: 5px 8px; font-size: .7rem; }
+    .fleet-filters-toggle summary {
+      width: fit-content;
+      padding: 5px 9px;
+      border-radius: 7px;
+      color: var(--muted);
+      font-size: .82rem;
+      cursor: pointer;
+    }
+    .fleet-filters-toggle summary:hover { background: var(--surface-soft); color: var(--ink); }
+    .fleet-filters-toggle summary small { margin-left: 6px; }
+    .fleet-filters-toggle .fleet-filters {
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr));
+      gap: 8px;
+      margin: 8px 0 0;
+      padding: 10px;
+      border-radius: 10px;
+    }
+    .fleet-filters-toggle .fleet-filters label {
+      gap: 4px;
+      padding: 6px 8px;
+      font-size: .68rem;
+    }
+    .fleet-filters-toggle .fleet-filters input,
+    .fleet-filters-toggle .fleet-filters select { min-height: 34px; padding: 6px 8px; font-size: .82rem; }
+    .fleet-filters-toggle .fleet-filter-actions {
+      min-height: 0;
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+    }
+    .fleet-filters-toggle .fleet-filter-actions button { min-height: 34px; padding: 7px 12px; font-size: .7rem; }
+    .fleet-filters-toggle .fleet-filter-actions small { padding: 5px 8px; font-size: .7rem; }
     button.secondary { border: 1px solid var(--border); background: var(--surface); color: var(--navy); box-shadow: none; }
     button.secondary:hover { background: var(--accent-soft); box-shadow: 0 4px 12px var(--shadow); }
     table { width: 100%; margin: 8px 0; border-collapse: separate; border-spacing: 0; }
@@ -332,11 +364,311 @@
     .feedback-trip-details { margin: 0; color: var(--muted); font-size: .9rem; }
     small { color: var(--muted); }
     .hidden { display: none; }
+    #auth-container.hidden,
+    #verify-container.hidden,
+    #reset-container.hidden,
+    #user-container.hidden { display: none; }
     .error { color: var(--accent); }
+
+    /* Dashboard refresh */
+    body {
+      background:
+        radial-gradient(circle at 85% 8%, rgba(143, 45, 61, .055), transparent 24rem),
+        linear-gradient(180deg, #f7f7f7 0, #fbfbfb 100%);
+    }
+    body > h2 {
+      display: flex;
+      align-items: center;
+      min-height: 48px;
+      border-left: 0;
+      padding-left: 0;
+      font-family: "Work Sans", sans-serif;
+      font-weight: 600;
+    }
+    body > h2::before {
+      content: "R";
+      display: inline-grid;
+      width: 42px;
+      height: 42px;
+      margin-right: 12px;
+      place-items: center;
+      border-radius: 12px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 1.15rem;
+      box-shadow: 0 8px 22px var(--ring);
+    }
+    #auth-container {
+      max-width: 760px;
+      min-height: 390px;
+      display: grid;
+      grid-template-columns: 42% 58%;
+      gap: 0;
+      margin-top: 64px;
+      padding: 0;
+      overflow: hidden;
+      border: 0;
+      border-radius: 22px;
+    }
+    .auth-brand {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 34px;
+      background:
+        linear-gradient(145deg, rgba(103, 32, 44, .92), rgba(143, 45, 61, .82)),
+        #67202c;
+      color: #fff;
+    }
+    .auth-brand .brand-mark {
+      display: grid;
+      width: 52px;
+      height: 52px;
+      place-items: center;
+      border: 1px solid rgba(255,255,255,.38);
+      border-radius: 15px;
+      background: rgba(255,255,255,.12);
+      font: 600 1.45rem "Work Sans", sans-serif;
+    }
+    .auth-brand > div:last-child { display: grid; gap: 7px; }
+    .auth-brand > div:last-child span {
+      font: 600 1.55rem "Work Sans", sans-serif;
+    }
+    .auth-brand small { color: rgba(255,255,255,.78); }
+    .auth-form { padding: 36px 38px 30px; }
+    .auth-form h3 { font-family: "Work Sans", sans-serif; font-weight: 600; }
+    .auth-form input {
+      height: 48px;
+      margin: 7px 0;
+      background: #fafafa;
+    }
+    .auth-form button { height: 48px; }
+    .session-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(255,255,255,.92);
+      box-shadow: 0 7px 24px rgba(0,0,0,.035);
+    }
+    .session-user { display: flex; align-items: center; gap: 10px; }
+    .session-user > div { display: grid; gap: 2px; }
+    .session-user small { font-size: .72rem; }
+    .session-user strong { color: var(--ink); font-size: .9rem; }
+    .avatar {
+      display: grid;
+      width: 38px;
+      height: 38px;
+      place-items: center;
+      border-radius: 10px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font: 600 .9rem "Work Sans", sans-serif;
+    }
+    .role-badge {
+      margin-left: 4px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: .72rem;
+      font-weight: 700;
+    }
+    .session-bar button { min-height: 38px; margin: 0; }
+    #app-error { margin: 0 0 12px; }
+    #user-container {
+      display: grid;
+      grid-template-columns: minmax(260px, .72fr) minmax(0, 1.28fr);
+      gap: 0 18px;
+    }
+    #user-container > .session-bar,
+    #user-container > #app-error,
+    #fleet-panel,
+    #occupancy-panel,
+    #day-trips-panel,
+    #manager-stats-panel,
+    #manager-feedback-list,
+    #manager-feedback-list + *,
+    #user-container > .panel:not(.passenger-only):not(.manager-only) {
+      grid-column: 1 / -1;
+    }
+    #reservation-panel { grid-column: 1; }
+    #reservations-panel { grid-column: 2; }
+    #vehicle-manager-panel { grid-column: 1; grid-row: 2; }
+    #feedback-panel { grid-column: 2; grid-row: 2; }
+    #occupancy-panel { grid-column: 1 / -1; grid-row: 3; }
+    #day-trips-panel { grid-column: 1 / -1; grid-row: 4; }
+    .panel {
+      border-radius: 18px;
+      box-shadow: 0 10px 30px rgba(33,33,33,.055);
+    }
+    .panel-title {
+      display: flex;
+      align-items: center;
+      min-height: 26px;
+      border-left: 4px solid var(--accent);
+      font-family: "Work Sans", sans-serif;
+      font-weight: 600;
+    }
+    #fleet-panel { margin-bottom: 18px; }
+    #reservation-panel,
+    #occupancy-panel { margin-top: 0; }
+    #reservation-panel select,
+    #reservation-panel input { width: 100%; margin: 5px 0 10px; }
+    #reservation-panel select[id="r-vehicle"] {
+      height: 46px;
+      font-weight: 600;
+    }
+    #reservation-panel button { width: 100%; height: 46px; }
+    .grid-wrap { border: 1px solid var(--border); background: #fff; }
+    .grid-wrap table { margin: 0; }
+    table { border-spacing: 0; }
+    #my-reservations td:last-child {
+      min-width: 96px;
+    }
+    #my-reservations td:last-child button {
+      min-height: 30px;
+      margin: 0;
+      padding: 6px 10px;
+      border-radius: 7px;
+      font-size: .68rem;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    #my-reservations td:last-child .feedback-rating {
+      display: inline-block;
+      font-size: .72rem;
+    }
+    th {
+      background: #f5f5f5;
+      font-size: .78rem;
+      letter-spacing: .025em;
+      text-transform: uppercase;
+    }
+    tbody tr { transition: background .12s ease; }
+    tbody tr:hover td { background: #fafafa; }
+    .grid td.mine,
+    .grid td.busy,
+    .grid td.off { border-bottom: 1px solid rgba(255,255,255,.5); }
+    @media (max-width: 900px) {
+      #user-container { grid-template-columns: 1fr; }
+      #reservation-panel,
+      #reservations-panel,
+      #occupancy-panel,
+      #vehicle-manager-panel,
+      #feedback-panel,
+      #day-trips-panel { grid-column: 1 / -1; grid-row: auto; }
+      #occupancy-panel { margin-top: 18px; }
+    }
+    /* Visual refinements: restrained, compact and product-oriented */
+    body {
+      background: #f5f5f4;
+    }
+    body::before {
+      height: 6px;
+      margin-bottom: 24px;
+      border-bottom: 0;
+    }
+    body > h2 {
+      margin-bottom: 18px;
+      padding: 0;
+      border: 0;
+      font-size: 1.45rem;
+      font-weight: 600;
+      letter-spacing: 0;
+    }
+    body > h2::before {
+      display: none;
+    }
+    #auth-container,
+    #verify-container,
+    #reset-container {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, .06);
+    }
+    #auth-container {
+      max-width: 430px;
+      min-height: 0;
+      display: block;
+      grid-template-columns: none;
+      margin-top: 42px;
+      padding: 30px;
+    }
+    .auth-brand {
+      display: none;
+    }
+    .auth-form {
+      padding: 0;
+    }
+    #auth-container h3,
+    #verify-container h3,
+    #reset-container h3 {
+      font-family: "Roboto", "Segoe UI", sans-serif;
+      font-weight: 500;
+    }
+    .session-bar {
+      margin-bottom: 14px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      box-shadow: none;
+    }
+    .avatar {
+      display: none;
+    }
+    .role-badge {
+      margin-left: 8px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .role-badge::before {
+      content: "· ";
+    }
+    .panel {
+      border-radius: 8px;
+      box-shadow: none;
+    }
+    .panel-title {
+      min-height: 22px;
+      border-left-width: 3px;
+      font-family: "Roboto", "Segoe UI", sans-serif;
+      font-weight: 500;
+    }
+    button {
+      border-radius: 6px;
+      letter-spacing: .035em;
+      box-shadow: none;
+    }
+    button:hover {
+      transform: none;
+      box-shadow: none;
+    }
+    input,
+    select {
+      border-radius: 6px;
+    }
+    .fleet-filters,
+    .fleet-filters-toggle .fleet-filters,
+    .reservation-filters .fleet-filters {
+      border-radius: 6px;
+    }
+    th {
+      background: #f2f2f1;
+    }
     @media (max-width: 640px) {
       body { padding: 0 12px 36px; }
       body::before { margin: 0 -12px 22px; }
       #auth-container, #verify-container, #reset-container { margin: 28px auto; padding: 22px; }
+      #auth-container { display: block; grid-template-columns: none; min-height: 0; padding: 22px; }
+      .session-bar { align-items: flex-start; }
+      .session-user { align-items: flex-start; flex-wrap: wrap; }
+      .role-badge { margin-left: 48px; }
       .panel { padding: 12px; }
       #user-container > p:first-child { flex-wrap: wrap; }
       th, td { padding: 8px; font-size: .8rem; }
@@ -413,68 +745,82 @@
 
   <!-- Área autenticada -->
   <div id="user-container" class="hidden">
-    <p>Sessão: <b id="user-email"></b> (<span id="user-role"></span>) <button onclick="logout()">Sair</button></p>
+    <div class="session-bar">
+      <div class="session-user">
+        <div>
+          <small>Conta ativa</small>
+          <strong id="user-email"></strong>
+        </div>
+        <span id="user-role" class="role-badge"></span>
+      </div>
+      <button class="secondary" onclick="logout()">Sair</button>
+    </div>
     <p id="app-error" class="error"></p>
 
-    <section class="panel">
+    <section id="fleet-panel" class="panel">
       <h3 class="panel-title">Frota</h3>
-      <div class="fleet-filters">
-        <div class="fleet-filter-heading">
-          <strong>Encontrar um veículo</strong>
-          <small>Combina a pesquisa com um ou mais filtros.</small>
+      <details class="fleet-filters-toggle">
+        <summary>Filtros <small id="fleet-count" aria-live="polite"></small></summary>
+        <div class="fleet-filters">
+          <label for="fleet-search">Pesquisar veículo
+            <input id="fleet-search" type="search" placeholder="Nome ou ID">
+          </label>
+          <label for="fleet-status-filter">Estado
+            <select id="fleet-status-filter">
+              <option value="">Todos os estados</option>
+              <option value="active">Ativo</option>
+              <option value="maintenance">Em Manutenção</option>
+              <option value="inactive">Inativo</option>
+            </select>
+          </label>
+          <label for="fleet-location-filter">Localização
+            <select id="fleet-location-filter">
+              <option value="">Todas as localizações</option>
+            </select>
+          </label>
+          <label for="fleet-battery-filter">Bateria
+            <select id="fleet-battery-filter">
+              <option value="">Qualquer nível</option>
+              <option value="75">75% ou mais</option>
+              <option value="50-74">50% a 74%</option>
+              <option value="25-49">25% a 49%</option>
+              <option value="0-24">Menos de 25%</option>
+            </select>
+          </label>
+          <div class="fleet-filter-actions">
+            <button class="secondary" type="button" onclick="clearFleetFilters()">Limpar filtros</button>
+          </div>
         </div>
-        <label for="fleet-search">Pesquisar veículo
-          <input id="fleet-search" type="search" placeholder="Nome ou ID">
-        </label>
-        <label for="fleet-status-filter">Estado
-          <select id="fleet-status-filter">
-            <option value="">Todos os estados</option>
-            <option value="active">Ativo</option>
-            <option value="maintenance">Em Manutenção</option>
-            <option value="inactive">Inativo</option>
-          </select>
-        </label>
-        <label for="fleet-location-filter">Localização
-          <select id="fleet-location-filter">
-            <option value="">Todas as localizações</option>
-          </select>
-        </label>
-        <label for="fleet-battery-filter">Bateria
-          <select id="fleet-battery-filter">
-            <option value="">Qualquer nível</option>
-            <option value="75">75% ou mais</option>
-            <option value="50-74">50% a 74%</option>
-            <option value="25-49">25% a 49%</option>
-            <option value="0-24">Menos de 25%</option>
-          </select>
-        </label>
-        <div class="fleet-filter-actions">
-          <button class="secondary" type="button" onclick="clearFleetFilters()">Limpar filtros</button>
-          <small id="fleet-count" aria-live="polite"></small>
-        </div>
-      </div>
+      </details>
       <div class="grid-wrap"><table>
         <thead><tr><th>ID</th><th>Nome</th><th>Estado</th><th>Localização</th><th>Bateria</th><th class="manager-only"></th></tr></thead>
         <tbody id="fleet"></tbody>
       </table></div>
     </section>
 
-    <section class="panel manager-only">
-      <h3 class="panel-title">Adicionar / editar veículo</h3>
-      <input id="v-id" placeholder="ID (ex.: taxi_01)">
-      <input id="v-name" placeholder="Nome">
-      <select id="v-status">
-        <option value="active">Ativo</option>
-        <option value="maintenance">Em Manutenção</option>
-        <option value="inactive">Inativo</option>
-      </select>
-      <select id="v-location" class="points"></select>
-      <input id="v-battery" type="number" min="0" max="100" placeholder="Bateria %">
-      <button onclick="saveVehicle()">Guardar</button>
-      <small id="v-msg" aria-live="polite"></small>
-    </section>
+      <section id="vehicle-manager-panel" class="panel manager-only">
+        <h3 class="panel-title">Adicionar / editar veículo</h3>
+        <input id="v-id" placeholder="ID (ex.: taxi_01)">
+        <input id="v-name" placeholder="Nome">
+        <select id="v-status">
+          <option value="active">Ativo</option>
+          <option value="maintenance">Em Manutenção</option>
+          <option value="inactive">Inativo</option>
+        </select>
+        <select id="v-location" class="points"></select>
+        <input id="v-battery" type="number" min="0" max="100" placeholder="Bateria %">
+        <button onclick="saveVehicle()">Guardar</button>
+        <small id="v-msg" aria-live="polite"></small>
+      </section>
 
-    <section class="panel passenger-only">
+      <section id="feedback-panel" class="panel manager-only">
+        <h3 class="panel-title">Feedback dos passageiros</h3>
+        <div id="manager-feedback-list" class="feedback-list" aria-live="polite">
+          <p class="stats-empty">Ainda não há feedback sobre viagens concluídas.</p>
+        </div>
+      </section>
+
+    <section id="reservation-panel" class="panel passenger-only">
       <h3 class="panel-title">Nova reserva</h3>
       <select id="r-vehicle"></select>
       Recolha <select id="r-pickup" class="points"></select>
@@ -484,7 +830,69 @@
       <button onclick="book()">Reservar</button>
     </section>
 
-    <section class="panel">
+    <section id="reservations-panel" class="panel passenger-only">
+      <h3 class="panel-title">As minhas reservas</h3>
+      <details class="reservation-filters">
+        <summary>Filtros <small id="reservation-count" aria-live="polite"></small></summary>
+        <div class="fleet-filters">
+          <label for="reservation-status-filter">Estado
+            <select id="reservation-status-filter">
+              <option value="">Todos os estados</option>
+              <option value="booked">Reservada</option>
+              <option value="in_progress">Em curso</option>
+              <option value="completed">Concluída</option>
+            </select>
+          </label>
+          <label for="reservation-vehicle-filter">Veículo
+            <select id="reservation-vehicle-filter">
+              <option value="">Todos os veículos</option>
+            </select>
+          </label>
+          <label for="reservation-date-from">Data inicial
+            <input id="reservation-date-from" type="date">
+          </label>
+          <label for="reservation-date-to">Data final
+            <input id="reservation-date-to" type="date">
+          </label>
+          <label for="reservation-search">Pesquisa
+            <input id="reservation-search" type="search" placeholder="Veículo, recolha, destino…">
+          </label>
+          <div class="fleet-filter-actions">
+            <button class="secondary" type="button" onclick="clearReservationFilters()">Limpar</button>
+          </div>
+        </div>
+      </details>
+      <div class="grid-wrap"><table>
+        <thead><tr><th>Veículo</th><th>Data</th><th>Bloco</th><th>Recolha</th><th>Destino</th><th>Estado</th><th>Ações</th></tr></thead>
+        <tbody id="my-reservations"></tbody>
+      </table></div>
+      <p id="feedback-status" aria-live="polite"></p>
+      <dialog id="feedback-dialog" class="stats-export-dialog feedback-dialog" aria-labelledby="feedback-title">
+        <form method="dialog">
+          <h4 id="feedback-title">Avaliar viagem</h4>
+          <p id="feedback-trip-details" class="feedback-trip-details"></p>
+          <label for="feedback-rating">Classificação
+            <select id="feedback-rating" required>
+              <option value="5">5 — Excelente</option>
+              <option value="4">4 — Muito bom</option>
+              <option value="3">3 — Bom</option>
+              <option value="2">2 — Fraco</option>
+              <option value="1">1 — Mau</option>
+            </select>
+          </label>
+          <label for="feedback-comment">Comentário (opcional)
+            <textarea id="feedback-comment" maxlength="500" placeholder="O que correu bem ou podia melhorar?"></textarea>
+          </label>
+          <small>O feedback só pode ser enviado uma vez por viagem concluída. Máximo de 500 caracteres.</small>
+          <div class="stats-export-dialog-actions">
+            <button class="secondary" type="submit" value="cancel">Cancelar</button>
+            <button id="feedback-submit" type="button">Enviar feedback</button>
+          </div>
+        </form>
+      </dialog>
+    </section>
+
+    <section id="occupancy-panel" class="panel">
       <div class="panel-heading">
         <h3 class="panel-title">Ocupação (Veículo x Bloco Horário)</h3>
         <input id="grid-date" type="date" aria-label="Data da ocupação" onchange="watchGrid()">
@@ -493,19 +901,12 @@
       <small>Rosa = ocupado · Carmim = a sua reserva · Cinzento = veículo indisponível</small>
     </section>
 
-    <section class="panel manager-only">
+    <section id="day-trips-panel" class="panel manager-only">
       <h3 class="panel-title">Viagens do dia selecionado</h3>
       <div class="grid-wrap"><table>
         <thead><tr><th>Bloco</th><th>Veículo</th><th>Passageiro</th><th>Recolha</th><th>Destino</th><th>Estado</th></tr></thead>
         <tbody id="day-trips"></tbody>
       </table></div>
-    </section>
-
-    <section class="panel manager-only">
-      <h3 class="panel-title">Feedback dos passageiros</h3>
-      <div id="manager-feedback-list" class="feedback-list" aria-live="polite">
-        <p class="stats-empty">Ainda não há feedback sobre viagens concluídas.</p>
-      </div>
     </section>
 
     <section id="manager-stats-panel" class="panel manager-only">
@@ -602,72 +1003,9 @@
     </section>
 
 
-
-    <section class="panel passenger-only">
-      <h3 class="panel-title">As minhas reservas</h3>
-      <details class="reservation-filters">
-        <summary>Filtros <small id="reservation-count" aria-live="polite"></small></summary>
-        <div class="fleet-filters">
-          <label for="reservation-status-filter">Estado
-            <select id="reservation-status-filter">
-              <option value="">Todos os estados</option>
-              <option value="booked">Reservada</option>
-              <option value="in_progress">Em curso</option>
-              <option value="completed">Concluída</option>
-            </select>
-          </label>
-          <label for="reservation-vehicle-filter">Veículo
-            <select id="reservation-vehicle-filter">
-              <option value="">Todos os veículos</option>
-            </select>
-          </label>
-          <label for="reservation-date-from">Data inicial
-            <input id="reservation-date-from" type="date">
-          </label>
-          <label for="reservation-date-to">Data final
-            <input id="reservation-date-to" type="date">
-          </label>
-          <label for="reservation-search">Pesquisa
-            <input id="reservation-search" type="search" placeholder="Veículo, recolha, destino…">
-          </label>
-          <div class="fleet-filter-actions">
-            <button class="secondary" type="button" onclick="clearReservationFilters()">Limpar</button>
-          </div>
-        </div>
-      </details>
-      <div class="grid-wrap"><table>
-        <thead><tr><th>Veículo</th><th>Data</th><th>Bloco</th><th>Recolha</th><th>Destino</th><th>Estado</th><th></th><th>Feedback</th></tr></thead>
-        <tbody id="my-reservations"></tbody>
-      </table></div>
-      <p id="feedback-status" aria-live="polite"></p>
-      <dialog id="feedback-dialog" class="stats-export-dialog feedback-dialog" aria-labelledby="feedback-title">
-        <form method="dialog">
-          <h4 id="feedback-title">Avaliar viagem</h4>
-          <p id="feedback-trip-details" class="feedback-trip-details"></p>
-          <label for="feedback-rating">Classificação
-            <select id="feedback-rating" required>
-              <option value="5">5 — Excelente</option>
-              <option value="4">4 — Muito bom</option>
-              <option value="3">3 — Bom</option>
-              <option value="2">2 — Fraco</option>
-              <option value="1">1 — Mau</option>
-            </select>
-          </label>
-          <label for="feedback-comment">Comentário (opcional)
-            <textarea id="feedback-comment" maxlength="500" placeholder="O que correu bem ou podia melhorar?"></textarea>
-          </label>
-          <small>O feedback só pode ser enviado uma vez por viagem concluída. Máximo de 500 caracteres.</small>
-          <div class="stats-export-dialog-actions">
-            <button class="secondary" type="submit" value="cancel">Cancelar</button>
-            <button id="feedback-submit" type="button">Enviar feedback</button>
-          </div>
-        </form>
-      </dialog>
-    </section>
-
   </div>
 
   <!-- O CI troca ?v= pelo commit em cada deploy: browsers com o app.js antigo em cache vão buscar o novo -->
-  <script type="module" src="app.js?v=7"></script>
+  <script type="module" src="app.js?v=19"></script>
 </body>
 </html>

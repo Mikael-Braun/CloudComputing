@@ -106,7 +106,7 @@ onAuthStateChanged(auth, async (user) => {
     snap = await getDoc(ref);
   }
   me = snap.data();
-  $("user-email").innerText = user.email;
+  $("user-email").innerText = me.name || user.email;
   $("user-role").innerText = me.role === "manager" ? "Gestor de Frota" : "Passageiro";
   const isManager = me.role === "manager";
   document.querySelectorAll(".manager-only").forEach((el) => el.classList.toggle("hidden", !isManager));
@@ -156,7 +156,7 @@ function renderMyReservations() {
 
   if (dateFrom && dateTo && dateFrom > dateTo) {
     $("reservation-count").textContent = "Intervalo inválido";
-    $("my-reservations").innerHTML = `<tr><td class="error" colspan="8">A data inicial não pode ser posterior à data final.</td></tr>`;
+    $("my-reservations").innerHTML = `<tr><td class="error" colspan="7">A data inicial não pode ser posterior à data final.</td></tr>`;
     return;
   }
 
@@ -173,16 +173,19 @@ function renderMyReservations() {
   $("reservation-count").textContent = `${filtered.length} ${filtered.length === 1 ? "reserva" : "reservas"}`;
   $("my-reservations").innerHTML = filtered.map((r) => {
     const feedback = myFeedback.find((item) => item.reservationId === r.reservationId);
+    const cancelAction = r.status === "booked"
+      ? `<button class="danger" onclick="cancelReservation('${esc(r.reservationId)}')">Cancelar</button>`
+      : "";
     const feedbackAction = r.status !== "completed"
       ? "—"
       : feedback
         ? `<span class="feedback-rating" aria-label="Avaliação enviada: ${feedback.rating} em 5">Enviado (${feedback.rating}/5)</span>`
         : `<button class="secondary" type="button" onclick="openTripFeedback('${esc(r.reservationId)}')">Avaliar táxi</button>`;
-    return `<tr><td>${esc(r.vehicleId)}</td><td>${esc(r.date)}</td><td>${esc(r.timeSlot)}</td>
+    const actions = [cancelAction, feedbackAction].filter((action) => action && action !== "—").join(" ");
+    return `<tr><td>${esc(r.vehicleId)}</td><td>${esc(formatDisplayDate(r.date))}</td><td>${esc(r.timeSlot)}</td>
     <td>${esc(r.pickupPoint)}</td><td>${esc(r.dropoffPoint)}</td><td>${esc(TRIP_STATUS[r.status] || r.status)}</td>
-    <td>${r.status === "booked" ? `<button class="danger" onclick="cancelReservation('${esc(r.reservationId)}')">Cancelar</button>` : ""}</td>
-    <td>${feedbackAction}</td></tr>`;
-  }).join("") || `<tr><td colspan="8">Sem reservas para estes filtros.</td></tr>`;
+    <td>${actions || "—"}</td></tr>`;
+  }).join("") || `<tr><td colspan="7">Sem reservas para estes filtros.</td></tr>`;
 }
 
 function renderManagerFeedback() {
@@ -194,7 +197,7 @@ function renderManagerFeedback() {
     const vehicle = vehicles.find((item) => item.vehicleId === feedback.vehicleId);
     const rating = Math.min(5, Math.max(0, Math.round(Number(feedback.rating) || 0)));
     const stars = `${"★".repeat(rating)}${"☆".repeat(5 - rating)}`;
-    const trip = reservation ? `${reservation.date} às ${reservation.timeSlot}` : "Viagem concluída";
+    const trip = reservation ? `${formatDisplayDate(reservation.date)} às ${reservation.timeSlot}` : "Viagem concluída";
     return `<article class="feedback-item">
       <div class="feedback-item-header">
         <strong>${esc(vehicle?.name || feedback.vehicleId)}</strong>
@@ -231,6 +234,13 @@ function renderVehicleFilters() {
 
 function formatLocalDate(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function formatDisplayDate(value) {
+  if (!value) return "";
+  const [year, month, day] = String(value).split("-").map(Number);
+  if (!year || !month || !day) return String(value);
+  return `${String(month).padStart(2, "0")}/${String(day).padStart(2, "0")}/${year}`;
 }
 
 function dateOrdinal(value) {
@@ -284,8 +294,8 @@ function buildTrendBuckets(dateFrom, dateTo, reservations) {
       const bucketStart = start + offset * DAY_MS;
       const bucketEnd = Math.min(end, bucketStart + (bucketSize - 1) * DAY_MS);
       const label = unit === "day"
-        ? formatOrdinalDate(bucketStart).slice(5).replace("-", "/")
-        : `${formatOrdinalDate(bucketStart).slice(5).replace("-", "/")}–${formatOrdinalDate(bucketEnd).slice(5).replace("-", "/")}`;
+        ? formatDisplayDate(formatOrdinalDate(bucketStart))
+        : `${formatDisplayDate(formatOrdinalDate(bucketStart))}–${formatDisplayDate(formatOrdinalDate(bucketEnd))}`;
       buckets.push({ key: unit === "day" ? String(offset) : String(Math.floor(offset / bucketSize)), label, value: 0 });
     }
   } else {
@@ -295,7 +305,7 @@ function buildTrendBuckets(dateFrom, dateTo, reservations) {
       cursor = Date.UTC(new Date(cursor).getUTCFullYear(), new Date(cursor).getUTCMonth() + 1, 1)) {
       const date = new Date(cursor);
       const key = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
-      buckets.push({ key, label: `${String(date.getUTCMonth() + 1).padStart(2, "0")}/${date.getUTCFullYear()}`, value: 0 });
+      buckets.push({ key, label: `${String(date.getUTCMonth() + 1).padStart(2, "0")}/01/${date.getUTCFullYear()}`, value: 0 });
     }
   }
 
@@ -461,8 +471,8 @@ function renderManagerStats() {
   </tr>`).join("") || `<tr><td colspan="5">Sem táxis para apresentar.</td></tr>`;
   const selectedVehicleData = visibleFleet.find((vehicle) => vehicle.vehicleId === selectedVehicle);
   managerStatsExportData = {
-    dateFrom,
-    dateTo,
+    dateFrom: formatDisplayDate(dateFrom),
+    dateTo: formatDisplayDate(dateTo),
     vehicleName: selectedVehicle
       ? selectedVehicleData?.name || selectedVehicle
       : "Todos os táxis",
@@ -676,7 +686,7 @@ window.book = async () => {
   if (new Date(`${date}T${timeSlot}:00Z`) <= new Date()) return showError(new Error("Esse bloco já começou. Escolha um horário futuro."));
   if ($("r-pickup").value === $("r-dropoff").value) return showError(new Error("Recolha e destino têm de ser diferentes."));
   const vehicleName = $("r-vehicle").selectedOptions[0].text.split(" (")[0];
-  if (!confirm(`Confirmar reserva?\n\n${vehicleName}\n${date.split("-").reverse().join("/")} às ${timeSlot}\n${$("r-pickup").value} → ${$("r-dropoff").value}`)) return;
+  if (!confirm(`Confirmar reserva?\n\n${vehicleName}\n${formatDisplayDate(date)} às ${timeSlot}\n${$("r-pickup").value} → ${$("r-dropoff").value}`)) return;
   const reservationId = `${vehicleId}_${date.replaceAll("-", "")}_${timeSlot.replace(":", "")}`;
   try {
     await setDoc(doc(db, "reservations", reservationId), {
@@ -708,7 +718,7 @@ window.openTripFeedback = (reservationId) => {
   }
   activeFeedbackReservationId = reservationId;
   const vehicle = vehicles.find((item) => item.vehicleId === reservation.vehicleId);
-  $("feedback-trip-details").textContent = `${vehicle?.name || reservation.vehicleId} · ${reservation.date} às ${reservation.timeSlot} · ${reservation.pickupPoint} → ${reservation.dropoffPoint}`;
+  $("feedback-trip-details").textContent = `${vehicle?.name || reservation.vehicleId} · ${formatDisplayDate(reservation.date)} às ${reservation.timeSlot} · ${reservation.pickupPoint} → ${reservation.dropoffPoint}`;
   $("feedback-rating").value = "5";
   $("feedback-comment").value = "";
   $("feedback-status").textContent = "";
