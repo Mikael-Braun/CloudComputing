@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, connectAuthEmulator, sendEmailVerification, sendPasswordResetEmail }
   from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, deleteDoc, collection, query, where, onSnapshot, serverTimestamp, connectFirestoreEmulator, writeBatch }
+import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, onSnapshot, serverTimestamp, connectFirestoreEmulator, writeBatch }
   from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -28,7 +28,7 @@ const POINTS = ["Entrada Norte", "Entrada Sul", "Biblioteca", "Cantina", "Resid�
 const SLOTS = Array.from({ length: 24 }, (_, i) => `${String(8 + Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
 const MIN_BATTERY = 20; // igual a minBattery() em firestore.rules
 const TRIP_BATTERY = 5; // % gasta em cada viagem concluída
-const STATUS = { active: "Ativo", maintenance: "Em Manutenção", inactive: "Inativo" };
+const STATUS = { active: "Ativo", maintenance: "Em manutenção", inactive: "Inativo" };
 const TRIP_STATUS = { booked: "Reservada", in_progress: "Em curso", completed: "Concluída" };
 const WEEKDAYS = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"];
 const STATS_HOURS = Array.from({ length: 12 }, (_, index) => `${String(index + 8).padStart(2, "0")}h`);
@@ -36,7 +36,40 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-const showError = (err) => { $("app-error").innerText = err ? err.message : ""; };
+// Erros do Firestore em português; o resto passa tal como vem.
+const DATA_ERRORS = {
+  "permission-denied": "Não tens permissão para esta operação.",
+  "unavailable": "Sem ligação ao servidor. Verifica a internet e tenta outra vez.",
+  "not-found": "O registo já não existe.",
+  "failed-precondition": "A operação não pôde ser concluída. Tenta outra vez.",
+  "resource-exhausted": "Limite de utilização atingido. Tenta mais tarde.",
+  "deadline-exceeded": "O servidor demorou demasiado a responder. Tenta outra vez."
+};
+const errorText = (err) => DATA_ERRORS[err.code] || err.message;
+const showError = (err) => { $("app-error").innerText = err ? errorText(err) : ""; };
+const badge = (status, labels) => `<span class="badge ${esc(status)}">${esc(labels[status] || status)}</span>`;
+const vehicleName = (id) => vehicles.find((v) => v.vehicleId === id)?.name || id;
+// Hora lida como UTC, como em slotNotPast() nas regras.
+const slotPast = (date, slot) => new Date(`${date}T${slot}:00Z`) <= new Date();
+
+function toast(message) {
+  const el = document.createElement("div");
+  el.className = "toast";
+  el.textContent = message;
+  $("toasts").append(el);
+  setTimeout(() => { el.classList.add("leaving"); setTimeout(() => el.remove(), 250); }, 3200);
+}
+
+// Confirmação num <dialog> da app; resolve true só se o utilizador confirmar (Esc = cancelar).
+function ask(title, bodyHtml, okLabel = "Confirmar") {
+  const dialog = $("confirm-dialog");
+  $("confirm-title").textContent = title;
+  $("confirm-body").innerHTML = bodyHtml;
+  $("confirm-ok").textContent = okLabel;
+  dialog.returnValue = "cancel";
+  dialog.showModal();
+  return new Promise((resolve) => dialog.addEventListener("close", () => resolve(dialog.returnValue === "ok"), { once: true }));
+}
 
 let me = null;          // { uid, name, role }
 let vehicles = [];
@@ -51,7 +84,6 @@ let gridReservations = [];
 let managerStatsExportData = null;
 
 for (const sel of document.querySelectorAll(".points")) sel.innerHTML = POINTS.map((p) => `<option>${esc(p)}</option>`).join("");
-for (const sel of document.querySelectorAll(".slots")) sel.innerHTML = SLOTS.map((s) => `<option>${s}</option>`).join("");
 for (const id of ["fleet-search", "fleet-status-filter", "fleet-location-filter", "fleet-battery-filter"]) {
   $(id).addEventListener(id === "fleet-search" ? "input" : "change", renderFleet);
 }
@@ -87,6 +119,15 @@ const today = new Date().toISOString().slice(0, 10);
 $("r-date").value = today;
 $("r-date").min = today;
 $("grid-date").value = today;
+// Formulário e grelha partilham a data: o passageiro vê os blocos livres do dia que vai reservar.
+$("r-date").addEventListener("change", () => {
+  if (!$("r-date").value || $("r-date").value < today) $("r-date").value = today;
+  $("grid-date").value = $("r-date").value;
+  watchGrid();
+});
+$("r-vehicle").addEventListener("change", () => { applyVehicleDefaults(); renderGrid(); });
+$("r-slot").addEventListener("change", () => renderGrid());
+$("r-pickup").addEventListener("change", fixDropoff);
 
 onAuthStateChanged(auth, async (user) => {
   unsubs.forEach((u) => u()); unsubs = [];
@@ -94,6 +135,8 @@ onAuthStateChanged(auth, async (user) => {
   $("auth-container").classList.toggle("hidden", !!user);
   $("verify-container").classList.toggle("hidden", !user || user.emailVerified);
   $("user-container").classList.toggle("hidden", !user?.emailVerified);
+  $("session").classList.toggle("hidden", !user?.emailVerified);
+  document.body.classList.remove("role-manager", "role-passenger");
   if (!user) { me = null; myFeedback = []; managerFeedback = []; return; }
   // As regras recusam tudo a contas com e-mail por confirmar.
   if (!user.emailVerified) { $("verify-email").innerText = user.email; return; }
@@ -109,6 +152,8 @@ onAuthStateChanged(auth, async (user) => {
   $("user-email").innerText = me.name || user.email;
   $("user-role").innerText = me.role === "manager" ? "Gestor de Frota" : "Passageiro";
   const isManager = me.role === "manager";
+  document.body.classList.add(isManager ? "role-manager" : "role-passenger");
+  renderWelcome();
   document.querySelectorAll(".manager-only").forEach((el) => el.classList.toggle("hidden", !isManager));
   document.querySelectorAll(".passenger-only").forEach((el) => el.classList.toggle("hidden", isManager));
 
@@ -118,6 +163,7 @@ onAuthStateChanged(auth, async (user) => {
     renderFleet();
     renderGrid();
     renderManagerFeedback();
+    if (!isManager) renderMyReservations();
   }, showError));
 
   if (!isManager) {
@@ -136,6 +182,7 @@ onAuthStateChanged(auth, async (user) => {
     myFeedback = [];
     unsubs.push(onSnapshot(collection(db, "reservations"), (qs) => {
       managerReservations = qs.docs.map((d) => d.data());
+      renderWelcome();
       renderManagerStats();
       renderManagerFeedback();
     }, showError));
@@ -147,7 +194,52 @@ onAuthStateChanged(auth, async (user) => {
   watchGrid();
 });
 
+// Saudação + resumo: próxima viagem (passageiro) ou indicadores do dia (gestor).
+function renderWelcome() {
+  if (!me) return;
+  const firstName = String(me.name || "").split(/[\s@]/)[0];
+  $("welcome-title").textContent = firstName ? `Olá, ${firstName}` : "Olá";
+  const todayLabel = new Date().toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "long" });
+  if (me.role === "manager") {
+    $("welcome-sub").textContent = `Painel do gestor de frota · ${todayLabel}`;
+    const todays = managerReservations.filter((r) => r.date === today);
+    const fleet = vehicles.filter((v) => v.status !== "inactive");
+    const low = fleet.filter((v) => Number(v.batteryLevel) < MIN_BATTERY).length;
+    const kpis = [
+      ["Viagens hoje", todays.length],
+      ["Em curso agora", todays.filter((r) => r.status === "in_progress").length],
+      ["Veículos ativos", `${vehicles.filter((v) => v.status === "active").length} de ${vehicles.length}`],
+      ["Bateria baixa", low, low > 0]
+    ];
+    $("kpis").innerHTML = kpis.map(([label, value, alert]) =>
+      `<div class="kpi ${alert ? "alert" : ""}"><span>${label}</span><strong>${value}</strong></div>`).join("");
+    return;
+  }
+  $("welcome-sub").textContent = todayLabel.charAt(0).toUpperCase() + todayLabel.slice(1);
+  const next = myReservations.find((r) => r.status === "in_progress") || myReservations.find((r) => r.status === "booked");
+  const box = $("next-trip");
+  box.classList.toggle("empty", !next);
+  box.innerHTML = next
+    ? `<div><small>${next.status === "in_progress" ? "Viagem em curso" : "Próxima viagem"}</small>
+        <strong>${esc(next.pickupPoint)} → ${esc(next.dropoffPoint)}</strong>
+        <small>${esc(vehicleName(next.vehicleId))}</small></div>
+      <div class="next-trip-time">${esc(next.timeSlot)}<small>${next.date === today ? "Hoje" : esc(formatDisplayDate(next.date))}</small></div>`
+    : `<span>Sem viagens marcadas. Escolhe um bloco livre na grelha ou usa o formulário para reservar.</span>`;
+}
+
+// Linha de viagem partilhada por "As minhas reservas" e "Viagens do dia".
+function tripItem(r, meta, actions) {
+  return `<li class="trip">
+    <div class="trip-when"><strong>${esc(r.timeSlot)}</strong><span>${esc(formatDisplayDate(r.date))}</span></div>
+    <div class="trip-main"><span class="trip-route">${esc(r.pickupPoint)} <i>→</i> ${esc(r.dropoffPoint)}</span>
+      <span class="trip-meta">${esc(meta)}</span></div>
+    ${badge(r.status, TRIP_STATUS)}
+    <div class="trip-actions">${actions}</div>
+  </li>`;
+}
+
 function renderMyReservations() {
+  renderWelcome();
   const statusFilter = $("reservation-status-filter").value;
   const vehicleFilter = $("reservation-vehicle-filter").value;
   const dateFrom = $("reservation-date-from").value;
@@ -156,7 +248,7 @@ function renderMyReservations() {
 
   if (dateFrom && dateTo && dateFrom > dateTo) {
     $("reservation-count").textContent = "Intervalo inválido";
-    $("my-reservations").innerHTML = `<tr><td class="error" colspan="7">A data inicial não pode ser posterior à data final.</td></tr>`;
+    $("my-reservations").innerHTML = `<li class="empty-state">A data inicial não pode ser posterior à data final.</li>`;
     return;
   }
 
@@ -165,27 +257,28 @@ function renderMyReservations() {
     const matchesVehicle = !vehicleFilter || r.vehicleId === vehicleFilter;
     const matchesDateFrom = !dateFrom || r.date >= dateFrom;
     const matchesDateTo = !dateTo || r.date <= dateTo;
-    const text = `${r.vehicleId} ${r.date} ${r.timeSlot} ${r.pickupPoint} ${r.dropoffPoint} ${TRIP_STATUS[r.status] || r.status}`.toLowerCase();
+    const text = `${r.vehicleId} ${vehicleName(r.vehicleId)} ${r.date} ${r.timeSlot} ${r.pickupPoint} ${r.dropoffPoint} ${TRIP_STATUS[r.status] || r.status}`.toLowerCase();
     const matchesSearch = !search || text.includes(search);
     return matchesStatus && matchesVehicle && matchesDateFrom && matchesDateTo && matchesSearch;
   });
+  // Primeiro o que ainda vai acontecer (por ordem), depois o histórico (mais recente primeiro).
+  const ordered = [...filtered.filter((r) => r.status !== "completed"), ...filtered.filter((r) => r.status === "completed").reverse()];
 
   $("reservation-count").textContent = `${filtered.length} ${filtered.length === 1 ? "reserva" : "reservas"}`;
-  $("my-reservations").innerHTML = filtered.map((r) => {
+  $("my-reservations").innerHTML = ordered.map((r) => {
     const feedback = myFeedback.find((item) => item.reservationId === r.reservationId);
-    const cancelAction = r.status === "booked"
-      ? `<button class="danger" onclick="cancelReservation('${esc(r.reservationId)}')">Cancelar</button>`
-      : "";
-    const feedbackAction = r.status !== "completed"
-      ? "—"
-      : feedback
-        ? `<span class="feedback-rating" aria-label="Avaliação enviada: ${feedback.rating} em 5">Enviado (${feedback.rating}/5)</span>`
-        : `<button class="secondary" type="button" onclick="openTripFeedback('${esc(r.reservationId)}')">Avaliar táxi</button>`;
-    const actions = [cancelAction, feedbackAction].filter((action) => action && action !== "—").join(" ");
-    return `<tr><td>${esc(r.vehicleId)}</td><td>${esc(formatDisplayDate(r.date))}</td><td>${esc(r.timeSlot)}</td>
-    <td>${esc(r.pickupPoint)}</td><td>${esc(r.dropoffPoint)}</td><td>${esc(TRIP_STATUS[r.status] || r.status)}</td>
-    <td>${actions || "—"}</td></tr>`;
-  }).join("") || `<tr><td colspan="7">Sem reservas para estes filtros.</td></tr>`;
+    let actions = "";
+    if (r.status === "booked") {
+      actions = `<button class="danger small" type="button" onclick="cancelReservation('${esc(r.reservationId)}')">Cancelar</button>`;
+    } else if (r.status === "completed") {
+      actions = feedback
+        ? `<span class="feedback-rating" aria-label="Avaliação enviada: ${feedback.rating} em 5">${"★".repeat(feedback.rating)}${"☆".repeat(5 - feedback.rating)}</span>`
+        : `<button class="secondary small" type="button" onclick="openTripFeedback('${esc(r.reservationId)}')">Avaliar</button>`;
+    }
+    return tripItem(r, vehicleName(r.vehicleId), actions);
+  }).join("") || `<li class="empty-state">${myReservations.length
+    ? "Nenhuma reserva corresponde aos filtros."
+    : "Ainda não tens reservas. Escolhe um bloco livre na grelha para começar."}</li>`;
 }
 
 function renderManagerFeedback() {
@@ -215,7 +308,7 @@ function renderVehicleFilters() {
   if (reservationVehicleFilter) {
     const currentValue = reservationVehicleFilter.value;
     reservationVehicleFilter.innerHTML = `<option value="">Todos os veículos</option>${sorted
-      .map((vehicleId) => `<option value="${esc(vehicleId)}">${esc(vehicleId)}</option>`).join("")}`;
+      .map((vehicleId) => `<option value="${esc(vehicleId)}">${esc(vehicleName(vehicleId))}</option>`).join("")}`;
     if (sorted.includes(currentValue)) reservationVehicleFilter.value = currentValue;
   }
 
@@ -240,7 +333,7 @@ function formatDisplayDate(value) {
   if (!value) return "";
   const [year, month, day] = String(value).split("-").map(Number);
   if (!year || !month || !day) return String(value);
-  return `${String(month).padStart(2, "0")}/${String(day).padStart(2, "0")}/${year}`;
+  return `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
 }
 
 function dateOrdinal(value) {
@@ -305,7 +398,7 @@ function buildTrendBuckets(dateFrom, dateTo, reservations) {
       cursor = Date.UTC(new Date(cursor).getUTCFullYear(), new Date(cursor).getUTCMonth() + 1, 1)) {
       const date = new Date(cursor);
       const key = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
-      buckets.push({ key, label: `${String(date.getUTCMonth() + 1).padStart(2, "0")}/01/${date.getUTCFullYear()}`, value: 0 });
+      buckets.push({ key, label: `${String(date.getUTCMonth() + 1).padStart(2, "0")}/${date.getUTCFullYear()}`, value: 0 });
     }
   }
 
@@ -529,7 +622,7 @@ function exportStatsCsv(data) {
     ])
   ];
   const csv = `\uFEFF${rows.map((row) => row.map(csvCell).join(";")).join("\r\n")}`;
-  downloadStatsFile(`estatisticas-${data.dateFrom}-${data.dateTo}.csv`, csv, "text/csv;charset=utf-8");
+  downloadStatsFile(`estatisticas-${data.dateFrom}-${data.dateTo}.csv`.replaceAll("/", "-"), csv, "text/csv;charset=utf-8");
 }
 
 function exportStatsChartSvg(data) {
@@ -557,7 +650,7 @@ function exportStatsChartSvg(data) {
   style.textContent = styleRules;
   svg.insertBefore(style, svg.firstChild);
   const content = new XMLSerializer().serializeToString(svg);
-  downloadStatsFile(`grafico-estatisticas-${data.dateFrom}-${data.dateTo}.svg`, content, "image/svg+xml;charset=utf-8");
+  downloadStatsFile(`grafico-estatisticas-${data.dateFrom}-${data.dateTo}.svg`.replaceAll("/", "-"), content, "image/svg+xml;charset=utf-8");
 }
 
 function exportManagerStats(format) {
@@ -581,6 +674,7 @@ function exportManagerStats(format) {
 
 function renderFleet() {
   renderVehicleFilters();
+  renderWelcome();
   const isManager = me?.role === "manager";
   const locationFilter = $("fleet-location-filter");
   const selectedLocation = locationFilter.value;
@@ -607,14 +701,64 @@ function renderFleet() {
       && (!location || v.currentLocation === location)
       && matchesBattery;
   });
-  $("fleet-count").textContent = `A mostrar ${filteredVehicles.length} de ${vehicles.length} veículos`;
-  $("fleet").innerHTML = filteredVehicles.map((v) => `<tr><td>${esc(v.vehicleId)}</td><td>${esc(v.name)}</td><td>${esc(STATUS[v.status] || v.status)}</td>
-    <td>${esc(v.currentLocation)}</td><td>${esc(v.batteryLevel)}%</td>
-    <td class="${isManager ? "" : "hidden"}"><button onclick="editVehicle('${esc(v.vehicleId)}')">Editar</button></td></tr>`).join("")
-    || `<tr><td colspan="6">${vehicles.length ? "Nenhum veículo corresponde aos filtros." : "Sem veículos."}</td></tr>`;
-  // Mesmo critério das Security Rules: ativo e com bateria >= MIN_BATTERY.
-  $("r-vehicle").innerHTML = vehicles.filter((v) => v.status === "active" && Number(v.batteryLevel) >= MIN_BATTERY)
-    .map((v) => `<option value="${esc(v.vehicleId)}">${esc(v.name)} (${esc(v.currentLocation)} · ${esc(v.batteryLevel)}%)</option>`).join("");
+  $("fleet-count").textContent = filteredVehicles.length === vehicles.length
+    ? `${vehicles.length} ${vehicles.length === 1 ? "veículo" : "veículos"}`
+    : `${filteredVehicles.length} de ${vehicles.length} veículos`;
+  $("fleet").innerHTML = filteredVehicles.map((v) => {
+    const level = Math.max(0, Math.min(100, Number(v.batteryLevel) || 0));
+    const tone = level < MIN_BATTERY ? "low" : level < 50 ? "mid" : "";
+    const available = v.status === "active" && level >= MIN_BATTERY;
+    const actions = isManager ? `<div class="vehicle-actions">
+        <button class="secondary small" type="button" onclick="editVehicle('${esc(v.vehicleId)}')">Editar</button>
+        ${level < 100 ? `<button class="secondary small" type="button" onclick="chargeVehicle('${esc(v.vehicleId)}')">Carregar</button>` : ""}
+      </div>` : "";
+    return `<article class="vehicle ${available ? "" : "unavailable"}">
+      <div class="vehicle-head"><div><strong>${esc(v.name)}</strong><small>${esc(v.vehicleId)}</small></div>${badge(v.status, STATUS)}</div>
+      <p class="vehicle-loc">Localização<br><b>${esc(v.currentLocation)}</b></p>
+      <div class="battery ${tone}" role="img" aria-label="Bateria ${level}%">
+        <span class="battery-track"><span class="battery-fill" style="width:${level}%"></span></span>
+        <span>${level}%${level < MIN_BATTERY ? " · precisa de carregar" : ""}</span>
+      </div>
+      ${actions}
+    </article>`;
+  }).join("") || `<p class="empty-state">${vehicles.length ? "Nenhum veículo corresponde aos filtros." : "Ainda não há veículos na frota."}</p>`;
+}
+
+// Veículos reserváveis (mesmo critério das Security Rules) e blocos livres e futuros para o veículo e a data escolhidos.
+function renderBookingOptions() {
+  if (!me || me.role === "manager") return;
+  const vehicleSelect = $("r-vehicle");
+  const previousVehicle = vehicleSelect.value;
+  const bookable = vehicles.filter((v) => v.status === "active" && Number(v.batteryLevel) >= MIN_BATTERY);
+  vehicleSelect.innerHTML = bookable
+    .map((v) => `<option value="${esc(v.vehicleId)}">${esc(v.name)} · ${esc(v.currentLocation)}</option>`).join("");
+  if (bookable.some((v) => v.vehicleId === previousVehicle)) vehicleSelect.value = previousVehicle;
+  else applyVehicleDefaults();
+
+  const date = $("r-date").value;
+  const taken = new Set(gridReservations.filter((r) => r.date === date && r.vehicleId === vehicleSelect.value).map((r) => r.timeSlot));
+  const free = bookable.length ? SLOTS.filter((slot) => !taken.has(slot) && !slotPast(date, slot)) : [];
+  const slotSelect = $("r-slot");
+  const previousSlot = slotSelect.value;
+  slotSelect.innerHTML = free.map((slot) => `<option>${slot}</option>`).join("");
+  if (free.includes(previousSlot)) slotSelect.value = previousSlot;
+  $("r-submit").disabled = !free.length;
+  $("r-hint").textContent = !bookable.length
+    ? "De momento não há veículos disponíveis (ativos e com bateria de 20% ou mais)."
+    : !free.length
+      ? "Sem blocos livres para este veículo nesta data. Escolhe outro dia ou outro veículo."
+      : `${free.length} ${free.length === 1 ? "bloco livre" : "blocos livres"} de 30 minutos para este veículo nesta data.`;
+}
+
+// A recolha sugerida é onde o veículo está; o destino nunca fica igual à recolha.
+function applyVehicleDefaults() {
+  const vehicle = vehicles.find((v) => v.vehicleId === $("r-vehicle").value);
+  if (vehicle && POINTS.includes(vehicle.currentLocation)) $("r-pickup").value = vehicle.currentLocation;
+  fixDropoff();
+}
+
+function fixDropoff() {
+  if ($("r-dropoff").value === $("r-pickup").value) $("r-dropoff").value = POINTS.find((p) => p !== $("r-pickup").value);
 }
 
 window.clearFleetFilters = () => {
@@ -642,38 +786,99 @@ window.watchGrid = () => {
   }, showError);
 };
 
-function renderGrid() {
-  const taken = new Map(gridReservations.map((r) => [`${r.vehicleId}_${r.timeSlot}`, r]));
-  const head = `<tr><th>Veículo</th>${SLOTS.map((s) => `<th>${s}</th>`).join("")}</tr>`;
-  const body = vehicles.map((v) => `<tr><th>${esc(v.name)}</th>${SLOTS.map((s) => {
-    const r = taken.get(`${v.vehicleId}_${s}`);
-    const cls = r ? (r.userId === me?.uid ? "mine" : "busy") : (v.status !== "active" ? "off" : "");
-    const title = r && me?.role === "manager" ? `title="${esc(r.passengerName)}: ${esc(r.pickupPoint)} → ${esc(r.dropoffPoint)}"` : "";
-    return `<td class="${cls}" ${title}>${r ? "●" : ""}</td>`;
-  }).join("")}</tr>`).join("");
-  $("grid").innerHTML = head + body;
+window.onGridDateChange = () => {
+  if (!$("grid-date").value) $("grid-date").value = today;
+  if (me?.role !== "manager" && $("grid-date").value >= today) $("r-date").value = $("grid-date").value;
+  watchGrid();
+};
 
-  if (me?.role !== "manager") return;
-  const trips = [...gridReservations].sort((a, b) => (a.timeSlot + a.vehicleId).localeCompare(b.timeSlot + b.vehicleId));
-  $("day-trips").innerHTML = trips.map((r) => `<tr><td>${esc(r.timeSlot)}</td><td>${esc(r.vehicleId)}</td><td>${esc(r.passengerName)}</td>
-    <td>${esc(r.pickupPoint)}</td><td>${esc(r.dropoffPoint)}</td>
-    <td><select onchange="setTripStatus('${esc(r.reservationId)}', this.value)">${Object.entries(TRIP_STATUS)
-      .map(([k, label]) => `<option value="${k}" ${k === r.status ? "selected" : ""}>${label}</option>`).join("")}</select></td></tr>`).join("")
-    || `<tr><td colspan="6">Sem viagens neste dia.</td></tr>`;
+// days = 0 volta a hoje; ±1 anda um dia.
+window.shiftGridDate = (days) => {
+  $("grid-date").value = days === 0 ? today : formatOrdinalDate(dateOrdinal($("grid-date").value || today) + days * DAY_MS);
+  onGridDateChange();
+};
+
+// Clique numa célula livre da grelha: preenche o formulário com esse veículo e bloco.
+window.pickSlot = (vehicleId, slot) => {
+  showError(null);
+  $("r-vehicle").value = vehicleId;
+  $("r-date").value = $("grid-date").value;
+  applyVehicleDefaults();
+  renderBookingOptions();
+  $("r-slot").value = slot;
+  renderGrid();
+  $("reservation-panel").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  $("r-submit").focus({ preventScroll: true });
+};
+
+function renderGrid() {
+  renderBookingOptions();
+  const date = $("grid-date").value;
+  const isManager = me?.role === "manager";
+  const taken = new Map(gridReservations.filter((r) => r.date === date).map((r) => [`${r.vehicleId}_${r.timeSlot}`, r]));
+  // Bloco que está a decorrer (hora em UTC, como nas regras).
+  const clock = new Date().toISOString().slice(11, 16);
+  const nowSlot = date === today ? `${clock.slice(0, 2)}:${clock.slice(3) < "30" ? "00" : "30"}` : null;
+  const selected = !isManager && $("r-date").value === date ? `${$("r-vehicle").value}_${$("r-slot").value}` : null;
+
+  const head = `<thead><tr><th scope="col">Veículo</th>${SLOTS.filter((_, i) => i % 2 === 0).map((s) =>
+    `<th scope="col" colspan="2" class="${nowSlot?.slice(0, 2) === s.slice(0, 2) ? "now-hour" : ""}">${s.slice(0, 2)}h</th>`).join("")}</tr></thead>`;
+  const body = vehicles.map((v) => {
+    const bookable = v.status === "active" && Number(v.batteryLevel) >= MIN_BATTERY;
+    return `<tr><th scope="row" title="${esc(v.name)}">${esc(v.name)}</th>${SLOTS.map((s, i) => {
+      const key = `${v.vehicleId}_${s}`;
+      const r = taken.get(key);
+      const cls = [i % 2 ? "half" : "", s === nowSlot ? "now" : ""];
+      let content = "";
+      let title = "";
+      if (r) {
+        const mine = r.userId === me?.uid;
+        cls.push(mine ? "mine" : "busy");
+        title = isManager ? `${r.passengerName}: ${r.pickupPoint} → ${r.dropoffPoint} (${s})` : mine ? `A tua reserva às ${s}` : `Ocupado às ${s}`;
+        content = `<span aria-label="${esc(title)}">●</span>`;
+      } else if (!bookable) {
+        cls.push("off");
+        title = "Veículo indisponível";
+      } else if (slotPast(date, s)) {
+        cls.push("past");
+      } else if (!isManager) {
+        if (key === selected) cls.push("selected");
+        title = `${v.name} às ${s}`;
+        content = `<button type="button" class="cell" aria-label="Escolher ${esc(v.name)} às ${s}" aria-pressed="${key === selected}" onclick="pickSlot('${esc(v.vehicleId)}','${s}')">${key === selected ? "✓" : ""}</button>`;
+      }
+      return `<td class="${cls.filter(Boolean).join(" ")}"${title ? ` title="${esc(title)}"` : ""}>${content}</td>`;
+    }).join("")}</tr>`;
+  }).join("") || `<tr><th scope="row">Sem veículos</th><td colspan="${SLOTS.length}"></td></tr>`;
+  $("grid").innerHTML = `${head}<tbody>${body}</tbody>`;
+
+  if (!isManager) return;
+  $("day-trips-date").textContent = date === today ? "hoje" : formatDisplayDate(date);
+  const trips = [...taken.values()].sort((a, b) => (a.timeSlot + a.vehicleId).localeCompare(b.timeSlot + b.vehicleId));
+  $("day-trips").innerHTML = trips.map((r) => {
+    // A simulação só anda para a frente: Reservada → Em curso → Concluída.
+    const next = r.status === "booked" ? ["in_progress", "Iniciar viagem"] : r.status === "in_progress" ? ["completed", "Concluir viagem"] : null;
+    const actions = `${next ? `<button class="small" type="button" onclick="setTripStatus('${esc(r.reservationId)}','${next[0]}')">${next[1]}</button>` : ""}${
+      r.status === "booked" ? `<button class="danger small" type="button" onclick="cancelReservation('${esc(r.reservationId)}')">Cancelar</button>` : ""}`;
+    return tripItem(r, `${vehicleName(r.vehicleId)} · ${r.passengerName}`, actions);
+  }).join("") || `<li class="empty-state">Sem viagens neste dia.</li>`;
 }
 
 window.setTripStatus = async (id, status) => {
   showError(null);
   const trip = gridReservations.find((r) => r.reservationId === id);
+  if (!trip) return;
   const batch = writeBatch(db);
   batch.update(doc(db, "reservations", id), { status });
   // Viagem concluída: o veículo fica no destino e gasta bateria. Batch = as duas escritas ou nenhuma.
-  if (status === "completed" && trip.status !== "completed") {
-    const v = vehicles.find((x) => x.vehicleId === trip.vehicleId);
+  const v = vehicles.find((x) => x.vehicleId === trip.vehicleId);
+  if (status === "completed" && trip.status !== "completed" && v) {
     // Math.max e não increment(-5): as regras recusam bateria < 0.
     batch.update(doc(db, "vehicles", trip.vehicleId), { currentLocation: trip.dropoffPoint, batteryLevel: Math.max(0, v.batteryLevel - TRIP_BATTERY) });
   }
-  try { await batch.commit(); } catch (err) { showError(err); }
+  try {
+    await batch.commit();
+    toast(status === "completed" ? `Viagem concluída. ${vehicleName(trip.vehicleId)} ficou em ${trip.dropoffPoint}.` : "Viagem iniciada.");
+  } catch (err) { showError(err); }
 };
 
 window.book = async () => {
@@ -681,19 +886,23 @@ window.book = async () => {
   const vehicleId = $("r-vehicle").value;
   const date = $("r-date").value;
   const timeSlot = $("r-slot").value;
-  if (!vehicleId || !date) return showError(new Error("Escolha um veículo ativo (bateria ≥ 20%) e uma data."));
-  // Hora em UTC, como em slotNotPast() nas regras.
-  if (new Date(`${date}T${timeSlot}:00Z`) <= new Date()) return showError(new Error("Esse bloco já começou. Escolha um horário futuro."));
-  if ($("r-pickup").value === $("r-dropoff").value) return showError(new Error("Recolha e destino têm de ser diferentes."));
-  const vehicleName = $("r-vehicle").selectedOptions[0].text.split(" (")[0];
-  if (!confirm(`Confirmar reserva?\n\n${vehicleName}\n${formatDisplayDate(date)} às ${timeSlot}\n${$("r-pickup").value} → ${$("r-dropoff").value}`)) return;
+  const pickupPoint = $("r-pickup").value;
+  const dropoffPoint = $("r-dropoff").value;
+  if (!vehicleId || !date || !timeSlot) return showError(new Error("Escolhe um veículo disponível, uma data e uma hora."));
+  if (slotPast(date, timeSlot)) return showError(new Error("Esse bloco já começou. Escolhe um horário futuro."));
+  if (pickupPoint === dropoffPoint) return showError(new Error("Recolha e destino têm de ser diferentes."));
+  const confirmed = await ask("Confirmar reserva?", `<dl class="summary-list">
+    <dt>Veículo</dt><dd>${esc(vehicleName(vehicleId))}</dd>
+    <dt>Quando</dt><dd>${esc(formatDisplayDate(date))} às ${esc(timeSlot)} (30 min)</dd>
+    <dt>Percurso</dt><dd>${esc(pickupPoint)} → ${esc(dropoffPoint)}</dd></dl>`, "Reservar");
+  if (!confirmed) return;
   const reservationId = `${vehicleId}_${date.replaceAll("-", "")}_${timeSlot.replace(":", "")}`;
   try {
     await setDoc(doc(db, "reservations", reservationId), {
       reservationId, vehicleId, userId: me.uid, passengerName: me.name,
-      pickupPoint: $("r-pickup").value, dropoffPoint: $("r-dropoff").value,
-      date, timeSlot, status: "booked", createdAt: serverTimestamp()
+      pickupPoint, dropoffPoint, date, timeSlot, status: "booked", createdAt: serverTimestamp()
     });
+    toast(`Reserva confirmada: ${vehicleName(vehicleId)}, ${formatDisplayDate(date)} às ${timeSlot}.`);
   } catch (err) {
     // ID determinístico: se o bloco já existe, as Security Rules recusam.
     showError(err.code === "permission-denied" ? new Error("Bloco já ocupado ou veículo indisponível.") : err);
@@ -701,8 +910,14 @@ window.book = async () => {
 };
 
 window.cancelReservation = async (id) => {
-  if (!confirm("Cancelar esta reserva?")) return;
-  try { await deleteDoc(doc(db, "reservations", id)); } catch (err) { showError(err); }
+  showError(null);
+  const r = [...myReservations, ...gridReservations].find((item) => item.reservationId === id);
+  const details = r ? `<p>${esc(vehicleName(r.vehicleId))}, ${esc(formatDisplayDate(r.date))} às ${esc(r.timeSlot)}. O bloco volta a ficar livre.</p>` : "";
+  if (!(await ask("Cancelar esta reserva?", details, "Cancelar reserva"))) return;
+  try {
+    await deleteDoc(doc(db, "reservations", id));
+    toast("Reserva cancelada.");
+  } catch (err) { showError(err); }
 };
 
 window.openTripFeedback = (reservationId) => {
@@ -721,7 +936,6 @@ window.openTripFeedback = (reservationId) => {
   $("feedback-trip-details").textContent = `${vehicle?.name || reservation.vehicleId} · ${formatDisplayDate(reservation.date)} às ${reservation.timeSlot} · ${reservation.pickupPoint} → ${reservation.dropoffPoint}`;
   $("feedback-rating").value = "5";
   $("feedback-comment").value = "";
-  $("feedback-status").textContent = "";
   $("feedback-dialog").showModal();
 };
 
@@ -755,8 +969,8 @@ async function submitTripFeedback() {
       comment,
       createdAt: serverTimestamp()
     });
-    $("feedback-status").textContent = "Obrigado! O teu feedback foi enviado.";
     $("feedback-dialog").close();
+    toast("Obrigado! A tua avaliação foi enviada.");
   } catch (err) {
     showError(err.code === "permission-denied"
       ? new Error("Não foi possível enviar: a viagem não está concluída ou já tem feedback.")
@@ -766,31 +980,48 @@ async function submitTripFeedback() {
   }
 }
 
-window.editVehicle = (id) => {
-  const v = vehicles.find((x) => x.vehicleId === id);
-  $("v-id").value = v.vehicleId;
-  $("v-name").value = v.name;
-  $("v-status").value = v.status;
-  $("v-location").value = v.currentLocation;
-  $("v-battery").value = v.batteryLevel;
-  // O formulário fica longe da tabela: levar o gestor até ele.
-  $("v-msg").innerText = `A editar ${v.vehicleId}`;
-  $("v-name").scrollIntoView({ behavior: "smooth", block: "center" });
-  $("v-name").focus({ preventScroll: true });
-};
+function openVehicleDialog(v) {
+  $("vehicle-dialog-title").textContent = v ? `Editar ${v.name}` : "Novo veículo";
+  $("v-id").value = v?.vehicleId ?? "";
+  $("v-id").readOnly = !!v; // o ID é a chave do documento: não muda depois de criado
+  $("v-name").value = v?.name ?? "";
+  $("v-status").value = v?.status ?? "active";
+  $("v-location").value = v?.currentLocation ?? POINTS[0];
+  $("v-battery").value = v?.batteryLevel ?? 100;
+  $("v-msg").innerText = "";
+  $("vehicle-dialog").showModal();
+}
+
+window.newVehicle = () => openVehicleDialog(null);
+window.editVehicle = (id) => openVehicleDialog(vehicles.find((x) => x.vehicleId === id));
 
 window.saveVehicle = async () => {
-  showError(null);
+  const fail = (message) => { $("v-msg").innerText = message; };
+  const editing = $("v-id").readOnly;
   const vehicleId = $("v-id").value.trim();
-  if (!/^[a-z0-9_]+$/.test(vehicleId)) return showError(new Error("ID inválido (use letras minúsculas, números e _)."));
+  const name = $("v-name").value.trim();
+  const batteryLevel = Number($("v-battery").value);
   const existing = vehicles.find((x) => x.vehicleId === vehicleId);
+  if (!/^[a-z0-9_]+$/.test(vehicleId)) return fail("ID inválido: usa letras minúsculas, números e _.");
+  if (!editing && existing) return fail("Já existe um veículo com este ID.");
+  if (!name) return fail("Indica o nome do veículo.");
+  if ($("v-battery").value === "" || !Number.isInteger(batteryLevel) || batteryLevel < 0 || batteryLevel > 100) return fail("Indica a bateria entre 0 e 100.");
   try {
     await setDoc(doc(db, "vehicles", vehicleId), {
-      vehicleId, name: $("v-name").value.trim(), status: $("v-status").value,
-      currentLocation: $("v-location").value, batteryLevel: parseInt($("v-battery").value, 10) || 0,
+      vehicleId, name, status: $("v-status").value, currentLocation: $("v-location").value, batteryLevel,
       createdAt: existing?.createdAt ?? serverTimestamp()
     });
-    $("v-msg").innerText = `${vehicleId} guardado ✓`;
+    $("vehicle-dialog").close();
+    toast(`${name} guardado.`);
+  } catch (err) { fail(errorText(err)); }
+};
+
+// Simulação do carregamento: a bateria só desce com as viagens, o gestor repõe-na.
+window.chargeVehicle = async (id) => {
+  showError(null);
+  try {
+    await updateDoc(doc(db, "vehicles", id), { batteryLevel: 100 });
+    toast(`${vehicleName(id)} carregado a 100%.`);
   } catch (err) { showError(err); }
 };
 
@@ -851,15 +1082,24 @@ window.resetPassword = async (e) => {
   }
 };
 
-// Alterna o formulário entre "Iniciar Sessão" e "Criar conta" (só este pede o nome).
+// Alterna o formulário entre "Iniciar sessão" e "Criar conta" (só este pede o nome).
+let signingUp = false;
 window.toggleSignup = (e) => {
   e.preventDefault();
-  const signingUp = $("name").classList.contains("hidden");
+  signingUp = !signingUp;
   document.querySelectorAll(".signup-only").forEach((el) => el.classList.toggle("hidden", !signingUp));
   document.querySelectorAll(".login-only").forEach((el) => el.classList.toggle("hidden", signingUp));
-  $("auth-title").innerText = signingUp ? "Criar Conta" : "Iniciar Sessão";
+  $("auth-title").innerText = signingUp ? "Criar conta" : "Iniciar sessão";
+  $("auth-submit").innerText = signingUp ? "Criar conta" : "Entrar";
+  $("password").autocomplete = signingUp ? "new-password" : "current-password";
   $("auth-toggle").innerText = signingUp ? "Já tens conta? Iniciar sessão" : "Ainda não tens conta? Criar conta";
   $("auth-error").innerText = "";
+};
+
+// O formulário submete com Enter; o mesmo botão serve para entrar e para criar conta.
+window.submitAuth = (e) => {
+  e.preventDefault();
+  return signingUp ? signup() : login();
 };
 
 window.signup = async () => {

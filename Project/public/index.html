@@ -3,699 +3,466 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RoboTaxi App</title>
+  <meta name="color-scheme" content="light dark">
+  <title>RoboTaxi Campus</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%238f2d3d'/%3E%3Ccircle cx='16' cy='16' r='7.5' fill='none' stroke='%23fff' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='16' r='2.6' fill='%23fff'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Work+Sans:wght@500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Work+Sans:wght@500;600&display=swap" rel="stylesheet">
   <style>
+    /* ---------- Tokens: uma cor de destaque (carmim ISLA Gaia), um sistema de raios, espaços em múltiplos de 4 ---------- */
     :root {
-      color-scheme: light;
-      font-family: Roboto, "Segoe UI", sans-serif;
-      color: #292929;
-      background: #f8f8f8;
+      color-scheme: light dark;
+      --accent: #8f2d3d;
+      --accent-hover: #67202c;
+      --accent-soft: #f6e9ec;
+      --on-accent: #ffffff;
+      --ink: #231d1f;
+      --ink-muted: #5f585a;
+      --surface: #ffffff;
+      --surface-2: #f7f5f4;
+      --canvas: #f3f1f0;
+      --line: #e3dedc;
+      --line-strong: #cfc8c5;
+      --ok: #1b6e45;      --ok-soft: #e3f3ea;
+      --warn: #8a4b00;    --warn-soft: #fcefd9;
+      --off: #5f585a;     --off-soft: #ebe8e7;
+      --info: #1d4f91;    --info-soft: #e4edf9;
+      --ring: rgba(143, 45, 61, .28);
+      --shadow: 0 1px 2px rgba(35, 29, 31, .05), 0 8px 24px rgba(35, 29, 31, .06);
+      --font-display: "Work Sans", system-ui, sans-serif;
+      --font-body: Roboto, "Segoe UI", system-ui, sans-serif;
+      --fs-xs: .8125rem; --fs-sm: .9375rem; --fs-md: 1.0625rem; --fs-lg: 1.25rem; --fs-xl: 1.5rem; --fs-2xl: 2rem;
+      --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px; --s8: 32px;
+      --r-card: 12px; --r-field: 8px; --r-pill: 999px;
+      --tap: 44px;
+      --ease-out: cubic-bezier(.2, 0, 0, 1);
+      --t-fast: 150ms; --t-base: 220ms;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --accent: #d0677a;
+        --accent-hover: #dd8394;
+        --accent-soft: #3a2228;
+        --on-accent: #1a1214;
+        --ink: #f1ecec;
+        --ink-muted: #b3aaac;
+        --surface: #231f20;
+        --surface-2: #2b2627;
+        --canvas: #181516;
+        --line: #3a3435;
+        --line-strong: #4c4546;
+        --ok: #7fd3a6;   --ok-soft: #1c3428;
+        --warn: #f0b765; --warn-soft: #3a2c14;
+        --off: #b3aaac;  --off-soft: #322d2e;
+        --info: #9cc1f2; --info-soft: #1c2b40;
+        --ring: rgba(208, 103, 122, .4);
+        --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; }
+    }
+
+    /* ---------- Base ---------- */
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      min-height: 100dvh;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--canvas);
+      color: var(--ink);
+      font: 400 var(--fs-sm)/1.5 var(--font-body);
       font-synthesis: none;
       text-rendering: optimizeLegibility;
-      /* Cores do ISLA Gaia (islagaia.pt) */
-      --ink: #292929;
-      --navy: #8f2d3d;
-      --navy-deep: #67202c;
-      --accent: #8f2d3d;
-      --accent-dark: #67202c;
-      --accent-soft: #f5ecee;
-      --muted: #6b6b6b;
-      --border: #e4e4e4;
-      --surface: #fff;
-      --surface-soft: #f8f8f8;
-      --ring: rgba(143, 45, 61, .16);
-      --shadow: rgba(0, 0, 0, .08);
     }
-    * { box-sizing: border-box; }
-    body {
-      min-height: 100vh;
-      margin: 0;
-      padding: 0 20px 56px;
-      background: var(--surface-soft);
-    }
-    /* Faixa superior: preto com fio carmim */
-    body::before {
-      content: "";
-      display: block;
-      height: 10px;
-      margin: 0 -20px 32px;
-      background: #000;
-      border-bottom: 4px solid var(--accent);
-    }
-    body > h2, #user-container {
-      width: min(1120px, 100%);
-      margin-left: auto;
-      margin-right: auto;
-    }
-    body > h2 {
-      margin-top: 0;
-      margin-bottom: 22px;
-      padding-left: 14px;
-      border-left: 6px solid var(--accent);
-      color: var(--ink);
-      font-size: clamp(1.7rem, 4vw, 2.35rem);
-      font-weight: 300;
-      letter-spacing: -0.02em;
-    }
-    #auth-container, #verify-container, #reset-container {
-      max-width: 430px;
-      margin: 48px auto;
-      padding: 30px;
-      border: 1px solid var(--border);
-      border-top: 5px solid var(--accent);
-      border-radius: 16px;
+    h1, h2, h3, h4 { margin: 0; font-family: var(--font-display); font-weight: 600; line-height: 1.25; }
+    p { margin: 0; }
+    small { color: var(--ink-muted); font-size: var(--fs-xs); }
+    .hidden { display: none !important; }
+    .error { color: var(--accent); }
+    p.error:empty { display: none; }
+    .muted { color: var(--ink-muted); }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+    /* ---------- Controlos ---------- */
+    input, select, textarea {
+      width: 100%;
+      min-height: var(--tap);
+      padding: 10px 12px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--r-field);
       background: var(--surface);
-      box-shadow: 0 20px 60px var(--shadow);
-    }
-    #auth-container h3, #verify-container h3, #reset-container h3 { margin: 0 0 6px; font-size: 1.5rem; font-weight: 300; }
-    .auth-sub { margin: 0 0 22px; color: var(--muted); font-size: .92rem; }
-    #auth-container input { margin: 6px 0; }
-    #auth-container button { margin-top: 14px; min-height: 46px; }
-    #auth-container a { color: var(--accent); font-size: .9rem; text-decoration: none; }
-    #auth-container a:hover { text-decoration: underline; }
-    #auth-container .auth-message { color: #166534; }
-    #auth-container p:last-child { margin: 18px 0 0; padding-top: 16px; border-top: 1px solid var(--border); text-align: center; }
-    #auth-container input, #auth-container button, #verify-container button, #reset-container input, #reset-container button { width: 100%; }
-    #reset-container button { margin-top: 14px; min-height: 46px; }
-    input, select, button {
-      min-height: 42px;
-      margin: 5px 3px 5px 0;
-      padding: 9px 12px;
-      border: 1px solid var(--border);
-      border-radius: 9px;
+      color: var(--ink);
       font: inherit;
+      transition: border-color var(--t-fast) var(--ease-out), box-shadow var(--t-fast) var(--ease-out);
     }
-    input, select { background: var(--surface); color: var(--ink); }
-    input:focus, select:focus {
+    textarea { min-height: 110px; resize: vertical; }
+    input:focus-visible, select:focus-visible, textarea:focus-visible {
       border-color: var(--accent);
-      outline: 3px solid var(--ring);
+      outline: none;
+      box-shadow: 0 0 0 3px var(--ring);
     }
+    input[readonly] { background: var(--surface-2); color: var(--ink-muted); }
+    .field { display: grid; gap: var(--s1); color: var(--ink-muted); font-size: var(--fs-xs); font-weight: 500; }
+    .field > input, .field > select, .field > textarea { font-size: var(--fs-sm); font-weight: 400; }
     button {
-      border: 0;
-      border-radius: 999px;
-      background: var(--accent);
-      color: #fff;
-      font: 500 .8rem "Work Sans", sans-serif;
-      letter-spacing: .05em;
-      text-transform: uppercase;
-      padding-inline: 18px;
-      cursor: pointer;
-      box-shadow: none;
-      transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
-    }
-    button:hover {
-      transform: translateY(-1px);
-      background: var(--accent-dark);
-      box-shadow: 0 5px 14px var(--ring);
-    }
-    button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-    button.danger { background: #292929; }
-    button.danger:hover { background: #000; box-shadow: 0 5px 14px var(--shadow); }
-    #user-container > p:first-child {
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 12px 16px;
-      border: 1px solid var(--border);
-      border-radius: 12px;
+      justify-content: center;
+      gap: var(--s2);
+      min-height: var(--tap);
+      padding: 10px 18px;
+      border: 1px solid transparent;
+      border-radius: var(--r-field);
+      background: var(--accent);
+      color: var(--on-accent);
+      font: 500 var(--fs-sm) var(--font-display);
+      cursor: pointer;
+      transition: background var(--t-fast) var(--ease-out), border-color var(--t-fast) var(--ease-out), transform var(--t-fast) var(--ease-out);
+    }
+    button:hover { background: var(--accent-hover); }
+    button:active { transform: scale(.98); }
+    button:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    button.secondary { border-color: var(--line-strong); background: var(--surface); color: var(--ink); }
+    button.secondary:hover { border-color: var(--accent); background: var(--accent-soft); }
+    button.ghost { background: transparent; color: var(--accent); }
+    button.ghost:hover { background: var(--accent-soft); }
+    button.danger { border-color: var(--line-strong); background: var(--surface); color: var(--accent); }
+    button.danger:hover { border-color: var(--accent); background: var(--accent-soft); }
+    button.small { min-height: 36px; padding: 6px 12px; font-size: var(--fs-xs); }
+    button.icon { width: var(--tap); padding: 0; }
+    a { color: var(--accent); }
+
+    /* ---------- Cabeçalho e rodapé ---------- */
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-bottom: 1px solid var(--line);
       background: var(--surface);
-      color: var(--muted);
     }
-    #user-email { color: var(--ink); }
-    #user-container > p:first-child button { margin-left: auto; }
-    .panel {
-      min-width: 0;
-      margin: 18px 0;
-      padding: 16px 18px 18px;
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      background: rgba(255, 255, 255, .94);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, .04);
+    .app-header-inner, main, .app-footer {
+      width: min(1200px, 100%);
+      margin-inline: auto;
+      padding-inline: var(--s4);
     }
-    .panel-title {
-      margin: 0 0 16px;
-      padding-left: 10px;
-      border-left: 3px solid var(--accent);
+    .app-header-inner { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); min-height: 60px; }
+    .brand { display: inline-flex; align-items: center; gap: var(--s3); color: var(--ink); font: 600 var(--fs-lg) var(--font-display); text-decoration: none; }
+    .brand svg { width: 32px; height: 32px; flex: none; }
+    .brand span span { color: var(--ink-muted); font-weight: 500; }
+    .session { display: flex; align-items: center; gap: var(--s3); min-width: 0; }
+    .session-user { display: grid; justify-items: end; min-width: 0; line-height: 1.25; }
+    .session-user strong { max-width: 40vw; overflow: hidden; font-size: var(--fs-sm); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+    .role-badge { color: var(--ink-muted); font-size: var(--fs-xs); }
+    main { flex: 1; padding-block: var(--s6) var(--s8); }
+    .app-footer { padding-block: var(--s4) var(--s6); color: var(--ink-muted); font-size: var(--fs-xs); text-align: center; }
+
+    /* ---------- Autenticação ---------- */
+    .auth-card {
+      width: min(420px, 100%);
+      margin: var(--s8) auto;
+      padding: var(--s8) var(--s6) var(--s6);
+      border: 1px solid var(--line);
+      border-radius: var(--r-card);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .auth-card h1 { font-size: var(--fs-xl); }
+    .auth-sub { margin: var(--s1) 0 var(--s6); color: var(--ink-muted); }
+    .auth-card form { display: grid; gap: var(--s3); }
+    .auth-card form > button { margin-top: var(--s2); }
+    .auth-links { display: grid; gap: var(--s3); margin-top: var(--s4); padding-top: var(--s4); border-top: 1px solid var(--line); font-size: var(--fs-sm); text-align: center; }
+    .auth-links a { text-decoration: none; }
+    .auth-links a:hover { text-decoration: underline; }
+    .auth-card .error:empty, #reset-message:empty, #verify-msg:empty { display: none; }
+    .auth-actions { display: grid; gap: var(--s2); margin-top: var(--s4); }
+
+    /* ---------- Área autenticada ---------- */
+    #user-container { display: grid; gap: var(--s5); }
+    #app-error {
+      padding: var(--s3) var(--s4);
+      border: 1px solid var(--accent);
+      border-radius: var(--r-field);
+      background: var(--accent-soft);
       color: var(--ink);
-      font-size: 1.05rem;
-      font-weight: 500;
-      line-height: 1.4;
     }
-    .panel-heading {
+    #app-error:empty { display: none; }
+    .welcome { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: var(--s5); align-items: center; }
+    .welcome h1 { font-size: var(--fs-2xl); letter-spacing: -.01em; }
+    .welcome-sub { color: var(--ink-muted); }
+    .next-trip {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      gap: var(--s4);
+      padding: var(--s4) var(--s5);
+      border-radius: var(--r-card);
+      background: var(--accent);
+      color: var(--on-accent);
     }
-    .panel-heading .panel-title { margin-bottom: 12px; }
-    .panel-heading input { margin: 0 0 12px; }
+    .next-trip small { color: inherit; opacity: .85; }
+    .next-trip strong { display: block; font: 600 var(--fs-lg) var(--font-display); }
+    .next-trip.empty { border: 1px dashed var(--line-strong); background: transparent; color: var(--ink-muted); }
+    .next-trip-time { flex: none; font: 600 var(--fs-xl) var(--font-display); text-align: right; }
+    .next-trip-time small { display: block; font: 400 var(--fs-xs) var(--font-body); }
+    .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s3); }
+    .kpi { display: grid; gap: 2px; padding: var(--s3) var(--s4); border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface); }
+    .kpi span { color: var(--ink-muted); font-size: var(--fs-xs); }
+    .kpi strong { font: 600 var(--fs-xl) var(--font-display); }
+    .kpi.alert strong { color: var(--warn); }
+
+    .panel {
+      min-width: 0;
+      padding: var(--s5);
+      border: 1px solid var(--line);
+      border-radius: var(--r-card);
+      background: var(--surface);
+    }
+    .panel-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s3); margin-bottom: var(--s4); }
+    .panel-title { font-size: var(--fs-md); }
+    .panel-heading .panel-title small { margin-left: var(--s2); font: 400 var(--fs-xs) var(--font-body); }
+    .panel-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
+    .panel-tools input[type="date"] { width: auto; }
+    .booking-row { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: var(--s5); align-items: start; }
+    body.role-manager .booking-row { grid-template-columns: minmax(0, 1fr); }
+    .empty-state { padding: var(--s6) var(--s4); border: 1px dashed var(--line-strong); border-radius: var(--r-field); color: var(--ink-muted); text-align: center; }
+
+    /* Formulários em grelha */
+    .form-grid { display: grid; gap: var(--s3); }
+    .form-grid .two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); }
+    .form-hint { color: var(--ink-muted); font-size: var(--fs-xs); }
+
+    /* Filtros recolhíveis */
+    details.filters { margin-bottom: var(--s4); }
+    details.filters summary { width: fit-content; padding: 6px 10px; border-radius: var(--r-field); color: var(--ink-muted); font-size: var(--fs-xs); cursor: pointer; }
+    details.filters summary:hover { background: var(--surface-2); color: var(--ink); }
     .fleet-filters {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(min(100%, 185px), 1fr));
-      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+      gap: var(--s3);
       align-items: end;
-      margin: 4px 0 16px;
-      padding: 16px;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      background: var(--surface-soft);
+      margin-top: var(--s2);
+      padding: var(--s3);
+      border-radius: var(--r-field);
+      background: var(--surface-2);
     }
-    .fleet-filter-heading { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 8px; }
-    .fleet-filter-heading strong { color: var(--navy-deep); font-size: .94rem; }
-    .fleet-filter-heading small { font-size: .82rem; }
-    .fleet-filters label {
-      display: grid;
-      gap: 7px;
-      padding: 10px;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      background: var(--surface);
-      color: var(--muted);
-      font-size: .76rem;
+    .fleet-filters label { display: grid; gap: var(--s1); color: var(--ink-muted); font-size: var(--fs-xs); font-weight: 500; }
+    .fleet-filters input, .fleet-filters select { font-size: var(--fs-sm); font-weight: 400; }
+    .fleet-filter-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }
+
+    /* Etiquetas de estado: cor + texto, nunca só cor */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: var(--r-pill);
+      background: var(--off-soft);
+      color: var(--off);
+      font-size: var(--fs-xs);
       font-weight: 500;
-      letter-spacing: .035em;
-      text-transform: uppercase;
-      transition: border-color .15s ease, box-shadow .15s ease;
-    }
-    .fleet-filters label:focus-within {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px var(--ring);
-    }
-    .fleet-filters input, .fleet-filters select {
-      width: 100%;
-      min-height: 40px;
-      margin: 0;
-      border-color: transparent;
-      background-color: var(--surface-soft);
-      font-size: .9rem;
-      letter-spacing: normal;
-      text-transform: none;
-    }
-    .fleet-filters input:focus, .fleet-filters select:focus { outline: none; }
-    .fleet-filter-actions {
-      display: flex;
-      flex-direction: column;
-      min-height: 60px;
-      align-items: flex-start;
-      justify-content: center;
-      gap: 7px;
-    }
-    .fleet-filter-actions button { min-height: 40px; margin: 0; white-space: nowrap; }
-    .fleet-filter-actions small {
-      padding: 7px 10px;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      background: var(--accent-soft);
-      color: var(--navy);
-      font-size: .76rem;
-      font-weight: 700;
-      line-height: 1.3;
-      text-align: center;
       white-space: nowrap;
     }
-    .reservation-filters { margin: 4px 0 12px; }
-    .reservation-filters summary {
-      width: fit-content;
-      padding: 5px 9px;
-      border-radius: 7px;
-      color: var(--muted);
-      font-size: .82rem;
-      cursor: pointer;
-    }
-    .reservation-filters summary:hover { background: var(--surface-soft); color: var(--ink); }
-    .reservation-filters summary small { margin-left: 6px; }
-    .reservation-filters .fleet-filters {
-      grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr));
-      gap: 8px;
-      margin: 8px 0 0;
-      padding: 10px;
-      border-radius: 10px;
-    }
-    .reservation-filters .fleet-filters label {
-      gap: 4px;
-      padding: 6px 8px;
-      font-size: .68rem;
-    }
-    .reservation-filters .fleet-filters input,
-    .reservation-filters .fleet-filters select { min-height: 34px; padding: 6px 8px; font-size: .82rem; }
-    .reservation-filters .fleet-filter-actions {
-      min-height: 0;
-      flex-direction: row;
+    .badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+    .badge.active, .badge.completed { background: var(--ok-soft); color: var(--ok); }
+    .badge.maintenance { background: var(--warn-soft); color: var(--warn); }
+    .badge.booked { background: var(--accent-soft); color: var(--accent); }
+    .badge.in_progress { background: var(--info-soft); color: var(--info); }
+
+    /* Frota em cartões */
+    .fleet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: var(--s3); }
+    .vehicle { display: grid; gap: var(--s3); padding: var(--s4); border: 1px solid var(--line); border-radius: var(--r-field); background: var(--surface); }
+    .vehicle.unavailable { background: var(--surface-2); }
+    .vehicle-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s2); }
+    .vehicle-head strong { display: block; font: 600 var(--fs-md) var(--font-display); overflow-wrap: anywhere; }
+    .vehicle-loc { color: var(--ink-muted); font-size: var(--fs-xs); }
+    .vehicle-loc b { color: var(--ink); font-size: var(--fs-sm); font-weight: 400; }
+    .battery { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--s3); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+    .battery-track { height: 8px; overflow: hidden; border-radius: var(--r-pill); background: var(--off-soft); }
+    .battery-fill { display: block; height: 100%; border-radius: inherit; background: var(--ok); transition: width var(--t-base) var(--ease-out); }
+    .battery.mid .battery-fill { background: var(--warn); }
+    .battery.low .battery-fill { background: var(--accent); }
+    .battery.low span:last-child { color: var(--accent); font-weight: 700; }
+    .vehicle-actions { display: flex; gap: var(--s2); }
+    .vehicle-actions button { flex: 1; }
+
+    /* Listas de viagens (minhas reservas e viagens do dia) */
+    .trip-list { display: grid; gap: var(--s2); margin: 0; padding: 0; list-style: none; }
+    .trip {
+      display: grid;
+      grid-template-columns: 76px minmax(0, 1fr) auto auto;
       align-items: center;
-      gap: 8px;
+      gap: var(--s4);
+      padding: var(--s3) var(--s4);
+      border: 1px solid var(--line);
+      border-radius: var(--r-field);
+      background: var(--surface);
     }
-    .reservation-filters .fleet-filter-actions button { min-height: 34px; padding: 7px 12px; font-size: .7rem; }
-    .reservation-filters .fleet-filter-actions small { padding: 5px 8px; font-size: .7rem; }
-    .fleet-filters-toggle summary {
-      width: fit-content;
-      padding: 5px 9px;
-      border-radius: 7px;
-      color: var(--muted);
-      font-size: .82rem;
-      cursor: pointer;
-    }
-    .fleet-filters-toggle summary:hover { background: var(--surface-soft); color: var(--ink); }
-    .fleet-filters-toggle summary small { margin-left: 6px; }
-    .fleet-filters-toggle .fleet-filters {
-      grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr));
-      gap: 8px;
-      margin: 8px 0 0;
-      padding: 10px;
-      border-radius: 10px;
-    }
-    .fleet-filters-toggle .fleet-filters label {
-      gap: 4px;
-      padding: 6px 8px;
-      font-size: .68rem;
-    }
-    .fleet-filters-toggle .fleet-filters input,
-    .fleet-filters-toggle .fleet-filters select { min-height: 34px; padding: 6px 8px; font-size: .82rem; }
-    .fleet-filters-toggle .fleet-filter-actions {
-      min-height: 0;
-      flex-direction: row;
-      align-items: center;
-      gap: 8px;
-    }
-    .fleet-filters-toggle .fleet-filter-actions button { min-height: 34px; padding: 7px 12px; font-size: .7rem; }
-    .fleet-filters-toggle .fleet-filter-actions small { padding: 5px 8px; font-size: .7rem; }
-    button.secondary { border: 1px solid var(--border); background: var(--surface); color: var(--navy); box-shadow: none; }
-    button.secondary:hover { background: var(--accent-soft); box-shadow: 0 4px 12px var(--shadow); }
-    table { width: 100%; margin: 8px 0; border-collapse: separate; border-spacing: 0; }
-    th, td {
-      padding: 10px 12px;
-      border-right: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-      font-size: .88rem;
+    .trip-when { display: grid; line-height: 1.2; font-variant-numeric: tabular-nums; }
+    .trip-when strong { font: 600 var(--fs-md) var(--font-display); }
+    .trip-when span { color: var(--ink-muted); font-size: var(--fs-xs); white-space: nowrap; }
+    .trip-main { display: grid; min-width: 0; }
+    .trip-route { font-weight: 500; overflow-wrap: anywhere; }
+    .trip-route i { color: var(--ink-muted); font-style: normal; }
+    .trip-meta { color: var(--ink-muted); font-size: var(--fs-xs); }
+    .trip-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--s2); min-width: 0; }
+    .trip-actions:empty { display: none; }
+    .feedback-rating { color: var(--accent); font-size: var(--fs-xs); font-weight: 700; white-space: nowrap; }
+
+    /* Grelha de ocupação */
+    .grid-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r-field); }
+    table { width: 100%; border-collapse: collapse; }
+    .grid { min-width: 720px; table-layout: fixed; }
+    .grid th, .grid td { height: 40px; padding: 0; border-bottom: 1px solid var(--line); font-size: var(--fs-xs); text-align: center; }
+    .grid tr:last-child > * { border-bottom: 0; }
+    .grid thead th { height: 32px; background: var(--surface-2); color: var(--ink-muted); font-weight: 500; }
+    .grid thead th.now-hour { color: var(--accent); font-weight: 700; }
+    .grid th:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      width: 132px;
+      padding: 0 var(--s3);
+      overflow: hidden;
+      border-right: 1px solid var(--line);
+      background: var(--surface-2);
+      color: var(--ink);
+      font-weight: 500;
       text-align: left;
+      text-overflow: ellipsis;
       white-space: nowrap;
     }
-    th { background: #f3f3f3; color: var(--ink); font-weight: 500; }
-    thead th { border-top: 1px solid var(--border); }
-    tr > :first-child { border-left: 1px solid var(--border); }
-    thead tr:first-child th:first-child { border-top-left-radius: 8px; }
-    thead tr:first-child th:last-child { border-top-right-radius: 8px; }
-    tbody tr { background: var(--surface); }
-    #fleet td[colspan] { padding: 24px 12px; color: var(--muted); text-align: center; }
-    .grid-wrap { overflow-x: auto; border-radius: 9px; }
-    .grid th, .grid td { text-align: center; }
-    .grid td { min-width: 40px; padding: 8px 5px; }
-    .grid .busy { background: var(--accent-soft); color: var(--accent); }
-    .grid .mine { background: var(--accent); color: #fff; }
-    .grid .off { background: #e9e9e9; }
-    .stats-cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
-      gap: 12px;
-      margin: 12px 0 20px;
+    .grid td { border-left: 1px solid var(--line); }
+    .grid td.half { border-left-style: dotted; }
+    .grid td.now { box-shadow: inset 0 3px 0 var(--accent); }
+    .grid td.busy { background: var(--off-soft); color: var(--off); }
+    .grid td.mine { background: var(--accent); color: var(--on-accent); }
+    .grid td.past { background: var(--surface-2); }
+    .grid td.off { background: repeating-linear-gradient(135deg, var(--off-soft) 0 5px, transparent 5px 10px); }
+    .grid td.selected { box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-soft); }
+    .grid .cell {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: var(--accent);
     }
-    .stats-card {
-      display: grid;
-      gap: 8px;
-      padding: 16px;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      background: var(--surface-soft);
-    }
-    .stats-card span { color: var(--muted); font-size: .82rem; }
-    .stats-card strong { color: var(--navy-deep); font-size: 1.35rem; }
-    .stats-card small { font-size: .78rem; }
+    .grid .cell:hover { background: var(--accent-soft); }
+    .grid .cell:active { transform: none; }
+    .legend { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); margin-top: var(--s3); color: var(--ink-muted); font-size: var(--fs-xs); }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .legend i { display: inline-grid; width: 16px; height: 16px; place-items: center; border: 1px solid var(--line-strong); border-radius: 4px; font-size: 9px; font-style: normal; }
+    .legend .l-mine { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+    .legend .l-busy { background: var(--off-soft); color: var(--off); }
+    .legend .l-off { background: repeating-linear-gradient(135deg, var(--off-soft) 0 3px, transparent 3px 6px); }
+    .legend .l-now { border: 0; border-radius: 0; box-shadow: inset 0 3px 0 var(--accent); }
+
+    /* Feedback */
+    .feedback-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: var(--s3); }
+    .feedback-item { padding: var(--s4); border: 1px solid var(--line); border-radius: var(--r-field); }
+    .feedback-item-header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--s2); }
+    .feedback-item-header span { color: var(--ink-muted); font-size: var(--fs-xs); }
+    .feedback-item-header .feedback-rating { color: var(--accent); }
+    .feedback-item p { margin-top: var(--s2); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .feedback-trip-details { color: var(--ink-muted); }
+
+    /* Estatísticas */
+    #manager-stats-panel h4 { margin: var(--s6) 0 var(--s3); font-size: var(--fs-sm); }
+    .stats-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: var(--s3); margin-top: var(--s4); }
+    .stats-card { display: grid; gap: var(--s1); align-content: start; padding: var(--s4); border: 1px solid var(--line); border-radius: var(--r-field); background: var(--surface-2); }
+    .stats-card span { color: var(--ink-muted); font-size: var(--fs-xs); }
+    .stats-card strong { font: 600 var(--fs-xl) var(--font-display); }
     .stats-comparison { min-height: 1em; }
     .stats-chart { max-width: 100%; overflow-x: auto; }
     .stats-chart-svg { display: block; width: 100%; min-width: 680px; height: auto; font-family: inherit; }
-    .stats-chart-grid { stroke: var(--border); stroke-width: 1; }
-    .stats-chart-axis-label, .stats-chart-category { fill: var(--muted); font-size: 12px; }
+    .stats-chart-grid { stroke: var(--line); stroke-width: 1; }
+    .stats-chart-axis-label, .stats-chart-category { fill: var(--ink-muted); font-size: 12px; }
     .stats-trend-line { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
     .stats-trend-point { fill: var(--accent); stroke: var(--surface); stroke-width: 2; }
-    .stats-breakdown-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 24px; margin: 20px 0; }
-    .stats-breakdown-grid h4 { margin: 8px 0 12px; }
-    .stats-bar-list { display: grid; gap: 9px; }
-    .stats-bar-row { display: grid; grid-template-columns: minmax(120px, 170px) minmax(48px, 1fr) 32px; align-items: center; gap: 10px; }
-    .stats-bar-label { overflow: hidden; color: var(--muted); font-size: .82rem; text-overflow: ellipsis; white-space: nowrap; }
-    .stats-bar-track { display: block; height: 12px; overflow: hidden; border-radius: 8px; background: var(--border); }
-    .stats-bar-fill { display: block; height: 100%; min-width: 0; border-radius: inherit; background: var(--accent); }
-    .stats-bar-row strong { color: var(--navy-deep); font-size: .82rem; text-align: right; }
-    .stats-taxi-summary { overflow-x: auto; margin-top: 18px; }
-    .stats-empty { margin: 0; color: var(--muted); }
-    .stats-export-actions { display: flex; justify-content: flex-end; margin-top: 18px; }
-    .stats-export-dialog {
-      width: min(420px, calc(100% - 32px));
-      padding: 22px;
-      border: 1px solid var(--border);
-      border-radius: 14px;
+    .stats-breakdown-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 0 var(--s6); }
+    .stats-bar-list { display: grid; gap: var(--s2); }
+    .stats-bar-row { display: grid; grid-template-columns: minmax(96px, 150px) minmax(48px, 1fr) 32px; align-items: center; gap: var(--s3); }
+    .stats-bar-label { overflow: hidden; color: var(--ink-muted); font-size: var(--fs-xs); text-overflow: ellipsis; white-space: nowrap; }
+    .stats-bar-track { display: block; height: 10px; overflow: hidden; border-radius: var(--r-pill); background: var(--off-soft); }
+    .stats-bar-fill { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
+    .stats-bar-row strong { font-size: var(--fs-xs); font-variant-numeric: tabular-nums; text-align: right; }
+    .stats-taxi-summary { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r-field); }
+    .stats-taxi-summary th, .stats-taxi-summary td { padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: var(--fs-sm); text-align: left; white-space: nowrap; }
+    .stats-taxi-summary th { background: var(--surface-2); color: var(--ink-muted); font-size: var(--fs-xs); font-weight: 500; }
+    .stats-taxi-summary tr:last-child td { border-bottom: 0; }
+    .stats-taxi-summary td:not(:first-child), .stats-taxi-summary th:not(:first-child) { font-variant-numeric: tabular-nums; text-align: right; }
+    .stats-empty { color: var(--ink-muted); }
+    .stats-note { display: block; margin-top: var(--s4); }
+
+    /* Diálogos e toasts */
+    dialog {
+      width: min(440px, calc(100% - 32px));
+      padding: var(--s6);
+      border: 1px solid var(--line);
+      border-radius: var(--r-card);
       background: var(--surface);
       color: var(--ink);
-      box-shadow: 0 20px 60px var(--shadow);
+      box-shadow: var(--shadow);
     }
-    .stats-export-dialog::backdrop { background: rgba(0, 0, 0, .45); }
-    .stats-export-dialog h4 { margin: 0 0 16px; }
-    .stats-export-dialog label { display: grid; gap: 6px; color: var(--muted); }
-    .stats-export-dialog select { width: 100%; margin: 0; color: var(--ink); }
-    .stats-export-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
-    .stats-export-dialog-actions button { margin: 0; }
-    .feedback-list { display: grid; gap: 12px; }
-    .feedback-item { padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-soft); }
-    .feedback-item-header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
-    .feedback-rating { color: var(--accent); font-weight: 700; }
-    .feedback-item p { margin: 10px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-    .feedback-dialog textarea { width: 100%; min-height: 110px; margin: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 9px; font: inherit; resize: vertical; }
-    .feedback-trip-details { margin: 0; color: var(--muted); font-size: .9rem; }
-    small { color: var(--muted); }
-    .hidden { display: none; }
-    #auth-container.hidden,
-    #verify-container.hidden,
-    #reset-container.hidden,
-    #user-container.hidden { display: none; }
-    .error { color: var(--accent); }
+    dialog[open] { animation: dialog-in var(--t-base) var(--ease-out); }
+    dialog::backdrop { background: rgba(20, 16, 17, .5); }
+    @keyframes dialog-in { from { opacity: 0; transform: translateY(8px) scale(.98); } }
+    dialog form { display: grid; gap: var(--s3); }
+    dialog h4 { font-size: var(--fs-lg); }
+    .dialog-actions, .stats-export-dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--s2); margin-top: var(--s3); }
+    .summary-list { display: grid; grid-template-columns: auto 1fr; gap: var(--s1) var(--s4); margin: 0; }
+    .summary-list dt { color: var(--ink-muted); font-size: var(--fs-xs); align-self: center; }
+    .summary-list dd { margin: 0; font-weight: 500; }
+    #toasts { position: fixed; left: 50%; bottom: var(--s6); z-index: 50; display: grid; gap: var(--s2); width: min(420px, calc(100% - 32px)); transform: translateX(-50%); pointer-events: none; }
+    .toast {
+      padding: var(--s3) var(--s4);
+      border-radius: var(--r-field);
+      background: var(--ink);
+      color: var(--canvas);
+      box-shadow: var(--shadow);
+      font-size: var(--fs-sm);
+      text-align: center;
+      animation: toast-in var(--t-base) var(--ease-out);
+      transition: opacity var(--t-base) var(--ease-out);
+    }
+    .toast.leaving { opacity: 0; }
+    @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
 
-    /* Dashboard refresh */
-    body {
-      background:
-        radial-gradient(circle at 85% 8%, rgba(143, 45, 61, .055), transparent 24rem),
-        linear-gradient(180deg, #f7f7f7 0, #fbfbfb 100%);
-    }
-    body > h2 {
-      display: flex;
-      align-items: center;
-      min-height: 48px;
-      border-left: 0;
-      padding-left: 0;
-      font-family: "Work Sans", sans-serif;
-      font-weight: 600;
-    }
-    body > h2::before {
-      content: "R";
-      display: inline-grid;
-      width: 42px;
-      height: 42px;
-      margin-right: 12px;
-      place-items: center;
-      border-radius: 12px;
-      background: var(--accent);
-      color: #fff;
-      font-size: 1.15rem;
-      box-shadow: 0 8px 22px var(--ring);
-    }
-    #auth-container {
-      max-width: 760px;
-      min-height: 390px;
-      display: grid;
-      grid-template-columns: 42% 58%;
-      gap: 0;
-      margin-top: 64px;
-      padding: 0;
-      overflow: hidden;
-      border: 0;
-      border-radius: 22px;
-    }
-    .auth-brand {
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      padding: 34px;
-      background:
-        linear-gradient(145deg, rgba(103, 32, 44, .92), rgba(143, 45, 61, .82)),
-        #67202c;
-      color: #fff;
-    }
-    .auth-brand .brand-mark {
-      display: grid;
-      width: 52px;
-      height: 52px;
-      place-items: center;
-      border: 1px solid rgba(255,255,255,.38);
-      border-radius: 15px;
-      background: rgba(255,255,255,.12);
-      font: 600 1.45rem "Work Sans", sans-serif;
-    }
-    .auth-brand > div:last-child { display: grid; gap: 7px; }
-    .auth-brand > div:last-child span {
-      font: 600 1.55rem "Work Sans", sans-serif;
-    }
-    .auth-brand small { color: rgba(255,255,255,.78); }
-    .auth-form { padding: 36px 38px 30px; }
-    .auth-form h3 { font-family: "Work Sans", sans-serif; font-weight: 600; }
-    .auth-form input {
-      height: 48px;
-      margin: 7px 0;
-      background: #fafafa;
-    }
-    .auth-form button { height: 48px; }
-    .session-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 18px;
-      padding: 12px 14px;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      background: rgba(255,255,255,.92);
-      box-shadow: 0 7px 24px rgba(0,0,0,.035);
-    }
-    .session-user { display: flex; align-items: center; gap: 10px; }
-    .session-user > div { display: grid; gap: 2px; }
-    .session-user small { font-size: .72rem; }
-    .session-user strong { color: var(--ink); font-size: .9rem; }
-    .avatar {
-      display: grid;
-      width: 38px;
-      height: 38px;
-      place-items: center;
-      border-radius: 10px;
-      background: var(--accent-soft);
-      color: var(--accent);
-      font: 600 .9rem "Work Sans", sans-serif;
-    }
-    .role-badge {
-      margin-left: 4px;
-      padding: 5px 9px;
-      border-radius: 999px;
-      background: var(--accent-soft);
-      color: var(--accent);
-      font-size: .72rem;
-      font-weight: 700;
-    }
-    .session-bar button { min-height: 38px; margin: 0; }
-    #app-error { margin: 0 0 12px; }
-    #user-container {
-      display: grid;
-      grid-template-columns: minmax(260px, .72fr) minmax(0, 1.28fr);
-      gap: 0 18px;
-    }
-    #user-container > .session-bar,
-    #user-container > #app-error,
-    #fleet-panel,
-    #occupancy-panel,
-    #day-trips-panel,
-    #manager-stats-panel,
-    #manager-feedback-list,
-    #manager-feedback-list + *,
-    #user-container > .panel:not(.passenger-only):not(.manager-only) {
-      grid-column: 1 / -1;
-    }
-    #reservation-panel { grid-column: 1; }
-    #reservations-panel { grid-column: 2; }
-    #vehicle-manager-panel { grid-column: 1; grid-row: 2; }
-    #feedback-panel { grid-column: 2; grid-row: 2; }
-    #occupancy-panel { grid-column: 1 / -1; grid-row: 3; }
-    #day-trips-panel { grid-column: 1 / -1; grid-row: 4; }
-    .panel {
-      border-radius: 18px;
-      box-shadow: 0 10px 30px rgba(33,33,33,.055);
-    }
-    .panel-title {
-      display: flex;
-      align-items: center;
-      min-height: 26px;
-      border-left: 4px solid var(--accent);
-      font-family: "Work Sans", sans-serif;
-      font-weight: 600;
-    }
-    #fleet-panel { margin-bottom: 18px; }
-    #reservation-panel,
-    #occupancy-panel { margin-top: 0; }
-    #reservation-panel select,
-    #reservation-panel input { width: 100%; margin: 5px 0 10px; }
-    #reservation-panel select[id="r-vehicle"] {
-      height: 46px;
-      font-weight: 600;
-    }
-    #reservation-panel button { width: 100%; height: 46px; }
-    .grid-wrap { border: 1px solid var(--border); background: #fff; }
-    .grid-wrap table { margin: 0; }
-    table { border-spacing: 0; }
-    #my-reservations td:last-child {
-      min-width: 96px;
-    }
-    #my-reservations td:last-child button {
-      min-height: 30px;
-      margin: 0;
-      padding: 6px 10px;
-      border-radius: 7px;
-      font-size: .68rem;
-      line-height: 1;
-      white-space: nowrap;
-    }
-    #my-reservations td:last-child .feedback-rating {
-      display: inline-block;
-      font-size: .72rem;
-    }
-    th {
-      background: #f5f5f5;
-      font-size: .78rem;
-      letter-spacing: .025em;
-      text-transform: uppercase;
-    }
-    tbody tr { transition: background .12s ease; }
-    tbody tr:hover td { background: #fafafa; }
-    .grid td.mine,
-    .grid td.busy,
-    .grid td.off { border-bottom: 1px solid rgba(255,255,255,.5); }
+    /* ---------- Ecrãs pequenos ---------- */
     @media (max-width: 900px) {
-      #user-container { grid-template-columns: 1fr; }
-      #reservation-panel,
-      #reservations-panel,
-      #occupancy-panel,
-      #vehicle-manager-panel,
-      #feedback-panel,
-      #day-trips-panel { grid-column: 1 / -1; grid-row: auto; }
-      #occupancy-panel { margin-top: 18px; }
-    }
-    /* Visual refinements: restrained, compact and product-oriented */
-    body {
-      background: #f5f5f4;
-    }
-    body::before {
-      height: 6px;
-      margin-bottom: 24px;
-      border-bottom: 0;
-    }
-    body > h2 {
-      margin-bottom: 18px;
-      padding: 0;
-      border: 0;
-      font-size: 1.45rem;
-      font-weight: 600;
-      letter-spacing: 0;
-    }
-    body > h2::before {
-      display: none;
-    }
-    #auth-container,
-    #verify-container,
-    #reset-container {
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      box-shadow: 0 8px 28px rgba(0, 0, 0, .06);
-    }
-    #auth-container {
-      max-width: 430px;
-      min-height: 0;
-      display: block;
-      grid-template-columns: none;
-      margin-top: 42px;
-      padding: 30px;
-    }
-    .auth-brand {
-      display: none;
-    }
-    .auth-form {
-      padding: 0;
-    }
-    #auth-container h3,
-    #verify-container h3,
-    #reset-container h3 {
-      font-family: "Roboto", "Segoe UI", sans-serif;
-      font-weight: 500;
-    }
-    .session-bar {
-      margin-bottom: 14px;
-      padding: 9px 12px;
-      border-radius: 8px;
-      box-shadow: none;
-    }
-    .avatar {
-      display: none;
-    }
-    .role-badge {
-      margin-left: 8px;
-      padding: 0;
-      border: 0;
-      background: transparent;
-      color: var(--muted);
-      font-weight: 500;
-    }
-    .role-badge::before {
-      content: "· ";
-    }
-    .panel {
-      border-radius: 8px;
-      box-shadow: none;
-    }
-    .panel-title {
-      min-height: 22px;
-      border-left-width: 3px;
-      font-family: "Roboto", "Segoe UI", sans-serif;
-      font-weight: 500;
-    }
-    button {
-      border-radius: 6px;
-      letter-spacing: .035em;
-      box-shadow: none;
-    }
-    button:hover {
-      transform: none;
-      box-shadow: none;
-    }
-    input,
-    select {
-      border-radius: 6px;
-    }
-    .fleet-filters,
-    .fleet-filters-toggle .fleet-filters,
-    .reservation-filters .fleet-filters {
-      border-radius: 6px;
-    }
-    th {
-      background: #f2f2f1;
+      .welcome, .booking-row { grid-template-columns: minmax(0, 1fr); }
+      .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     @media (max-width: 640px) {
-      body { padding: 0 12px 36px; }
-      body::before { margin: 0 -12px 22px; }
-      #auth-container, #verify-container, #reset-container { margin: 28px auto; padding: 22px; }
-      #auth-container { display: block; grid-template-columns: none; min-height: 0; padding: 22px; }
-      .session-bar { align-items: flex-start; }
-      .session-user { align-items: flex-start; flex-wrap: wrap; }
-      .role-badge { margin-left: 48px; }
-      .panel { padding: 12px; }
-      #user-container > p:first-child { flex-wrap: wrap; }
-      th, td { padding: 8px; font-size: .8rem; }
-      .panel input, .panel select { max-width: 100%; }
-      .panel-heading { align-items: flex-start; flex-direction: column; gap: 0; }
-      .panel-heading input { margin-bottom: 12px; }
-      .fleet-filters { grid-template-columns: 1fr; gap: 9px; padding: 12px; }
-      .stats-bar-row { grid-template-columns: minmax(90px, 120px) minmax(40px, 1fr) 28px; gap: 7px; }
-      .fleet-filter-heading { display: grid; gap: 3px; }
-      .fleet-filter-actions { min-height: auto; flex-wrap: wrap; }
-      .fleet-filter-actions button { flex: 1; }
+      main { padding-block: var(--s4) var(--s6); }
+      .panel { padding: var(--s4); }
+      .welcome h1 { font-size: var(--fs-xl); }
+      .brand span span { display: none; }
+      .trip { grid-template-columns: 84px minmax(0, 1fr); gap: var(--s2) var(--s3); }
+      .trip > .badge { grid-column: 2; justify-self: start; }
+      .trip-actions { grid-column: 1 / -1; justify-content: stretch; }
+      .trip-actions button { flex: 1; }
+      .grid th:first-child { width: 104px; }
+      .grid .cell, .grid td { min-width: 30px; }
+      .dialog-actions button, .stats-export-dialog-actions button { flex: 1; }
     }
+
+    /* ---------- Impressão das estatísticas (exportar PDF) ---------- */
     @page { size: A4 landscape; margin: 12mm; }
     @media print {
-      body.printing-stats::before { display: none !important; }
+      :root { color-scheme: light; --ink: #231d1f; --ink-muted: #5f585a; --surface: #fff; --surface-2: #f7f5f4; --canvas: #fff; --line: #e3dedc; --accent: #8f2d3d; --off-soft: #ebe8e7; }
       body.printing-stats * { visibility: hidden !important; }
       body.printing-stats #manager-stats-panel,
       body.printing-stats #manager-stats-panel * { visibility: visible !important; }
-      body.printing-stats #manager-stats-panel {
-        position: absolute !important;
-        top: 0;
-        left: 0;
-        width: 100%;
-        margin: 0;
-        border: 0;
-        box-shadow: none;
-      }
+      body.printing-stats #manager-stats-panel { position: absolute !important; top: 0; left: 0; width: 100%; margin: 0; border: 0; }
+      body.printing-stats .app-header { position: static; }
       body.printing-stats .stats-export-actions,
       body.printing-stats #stats-export-dialog { display: none !important; }
       body.printing-stats .stats-chart { overflow: visible; }
@@ -704,306 +471,386 @@
   </style>
 </head>
 <body>
-  <h2>RoboTaxi App</h2>
-
-  <!-- Autenticação -->
-  <div id="auth-container">
-    <h3 id="auth-title">Iniciar Sessão</h3>
-    <p class="auth-sub">Reserva o teu RoboTaxi no campus.</p>
-    <input type="text" id="name" class="signup-only hidden" placeholder="Nome">
-    <input type="email" id="email" placeholder="E-mail" required>
-    <input type="password" id="password" placeholder="Palavra-passe" required>
-    <button class="login-only" onclick="login()">Entrar</button>
-    <button class="signup-only hidden" onclick="signup()">Criar Conta</button>
-    <p class="login-only"><a href="#" onclick="showPasswordReset(event)">Esqueceste-te da palavra-passe?</a></p>
-    <p id="auth-error" class="error"></p>
-    <p><a href="#" id="auth-toggle" onclick="toggleSignup(event)">Ainda não tens conta? Criar conta</a></p>
-  </div>
-
-  <!-- Recuperação da palavra-passe -->
-  <div id="reset-container" class="hidden">
-    <h3>Recuperar palavra-passe</h3>
-    <p class="auth-sub">Indica o teu e-mail para receberes as instruções de recuperação.</p>
-    <form onsubmit="resetPassword(event)">
-      <input type="email" id="reset-email" placeholder="E-mail" autocomplete="email" required>
-      <p id="reset-error" class="error"></p>
-      <p id="reset-message" aria-live="polite"></p>
-      <button type="submit">Enviar recuperação</button>
-      <button type="button" class="secondary" onclick="returnToLogin()">Voltar atrás</button>
-    </form>
-  </div>
-
-  <!-- Conta criada mas e-mail por confirmar -->
-  <div id="verify-container" class="hidden">
-    <h3>Confirma o teu e-mail</h3>
-    <p>Enviámos um link de confirmação para <b id="verify-email"></b>. Abre o e-mail (vê também o spam), clica no link e depois carrega em "Já confirmei".</p>
-    <button onclick="checkVerified()">Já confirmei</button>
-    <button onclick="resendVerification()">Reenviar e-mail</button>
-    <button onclick="logout()">Sair</button>
-    <p id="verify-msg" aria-live="polite"></p>
-  </div>
-
-  <!-- Área autenticada -->
-  <div id="user-container" class="hidden">
-    <div class="session-bar">
-      <div class="session-user">
-        <div>
-          <small>Conta ativa</small>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <a class="brand" href="./" aria-label="RoboTaxi Campus, início">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--accent)"/><circle cx="16" cy="16" r="7.5" fill="none" stroke="var(--on-accent)" stroke-width="2.5"/><circle cx="16" cy="16" r="2.6" fill="var(--on-accent)"/></svg>
+        <span>RoboTaxi <span>Campus</span></span>
+      </a>
+      <div id="session" class="session hidden">
+        <div class="session-user">
           <strong id="user-email"></strong>
+          <span id="user-role" class="role-badge"></span>
         </div>
-        <span id="user-role" class="role-badge"></span>
+        <button class="secondary small" type="button" onclick="logout()">Sair</button>
       </div>
-      <button class="secondary" onclick="logout()">Sair</button>
     </div>
-    <p id="app-error" class="error"></p>
+  </header>
 
-    <section id="fleet-panel" class="panel">
-      <h3 class="panel-title">Frota</h3>
-      <details class="fleet-filters-toggle">
-        <summary>Filtros <small id="fleet-count" aria-live="polite"></small></summary>
-        <div class="fleet-filters">
-          <label for="fleet-search">Pesquisar veículo
-            <input id="fleet-search" type="search" placeholder="Nome ou ID">
-          </label>
-          <label for="fleet-status-filter">Estado
-            <select id="fleet-status-filter">
-              <option value="">Todos os estados</option>
-              <option value="active">Ativo</option>
-              <option value="maintenance">Em Manutenção</option>
-              <option value="inactive">Inativo</option>
-            </select>
-          </label>
-          <label for="fleet-location-filter">Localização
-            <select id="fleet-location-filter">
-              <option value="">Todas as localizações</option>
-            </select>
-          </label>
-          <label for="fleet-battery-filter">Bateria
-            <select id="fleet-battery-filter">
-              <option value="">Qualquer nível</option>
-              <option value="75">75% ou mais</option>
-              <option value="50-74">50% a 74%</option>
-              <option value="25-49">25% a 49%</option>
-              <option value="0-24">Menos de 25%</option>
-            </select>
-          </label>
-          <div class="fleet-filter-actions">
-            <button class="secondary" type="button" onclick="clearFleetFilters()">Limpar filtros</button>
-          </div>
-        </div>
-      </details>
-      <div class="grid-wrap"><table>
-        <thead><tr><th>ID</th><th>Nome</th><th>Estado</th><th>Localização</th><th>Bateria</th><th class="manager-only"></th></tr></thead>
-        <tbody id="fleet"></tbody>
-      </table></div>
+  <main>
+    <!-- Autenticação -->
+    <section id="auth-container" class="auth-card">
+      <h1 id="auth-title">Iniciar sessão</h1>
+      <p class="auth-sub">Reserva um táxi autónomo para te deslocares no campus.</p>
+      <form onsubmit="submitAuth(event)" novalidate>
+        <label class="field signup-only hidden" for="name">Nome
+          <input type="text" id="name" autocomplete="name">
+        </label>
+        <label class="field" for="email">E-mail
+          <input type="email" id="email" autocomplete="email" required>
+        </label>
+        <label class="field" for="password">Palavra-passe
+          <input type="password" id="password" autocomplete="current-password" required>
+        </label>
+        <p id="auth-error" class="error" role="alert"></p>
+        <button type="submit" id="auth-submit">Entrar</button>
+      </form>
+      <div class="auth-links">
+        <a href="#" class="login-only" onclick="showPasswordReset(event)">Esqueceste-te da palavra-passe?</a>
+        <a href="#" id="auth-toggle" onclick="toggleSignup(event)">Ainda não tens conta? Criar conta</a>
+      </div>
     </section>
 
-      <section id="vehicle-manager-panel" class="panel manager-only">
-        <h3 class="panel-title">Adicionar / editar veículo</h3>
-        <input id="v-id" placeholder="ID (ex.: taxi_01)">
-        <input id="v-name" placeholder="Nome">
-        <select id="v-status">
-          <option value="active">Ativo</option>
-          <option value="maintenance">Em Manutenção</option>
-          <option value="inactive">Inativo</option>
-        </select>
-        <select id="v-location" class="points"></select>
-        <input id="v-battery" type="number" min="0" max="100" placeholder="Bateria %">
-        <button onclick="saveVehicle()">Guardar</button>
-        <small id="v-msg" aria-live="polite"></small>
+    <!-- Recuperação da palavra-passe -->
+    <section id="reset-container" class="auth-card hidden">
+      <h1>Recuperar palavra-passe</h1>
+      <p class="auth-sub">Indica o teu e-mail para receberes as instruções de recuperação.</p>
+      <form onsubmit="resetPassword(event)" novalidate>
+        <label class="field" for="reset-email">E-mail
+          <input type="email" id="reset-email" autocomplete="email" required>
+        </label>
+        <p id="reset-error" class="error" role="alert"></p>
+        <p id="reset-message" aria-live="polite"></p>
+        <button type="submit">Enviar recuperação</button>
+        <button type="button" class="secondary" onclick="returnToLogin()">Voltar atrás</button>
+      </form>
+    </section>
+
+    <!-- Conta criada mas e-mail por confirmar -->
+    <section id="verify-container" class="auth-card hidden">
+      <h1>Confirma o teu e-mail</h1>
+      <p class="auth-sub">Enviámos um link de confirmação para <b id="verify-email"></b>. Abre o e-mail (vê também o spam), clica no link e depois carrega em "Já confirmei".</p>
+      <p id="verify-msg" aria-live="polite"></p>
+      <div class="auth-actions">
+        <button type="button" onclick="checkVerified()">Já confirmei</button>
+        <button type="button" class="secondary" onclick="resendVerification()">Reenviar e-mail</button>
+        <button type="button" class="ghost" onclick="logout()">Sair</button>
+      </div>
+    </section>
+
+    <!-- Área autenticada -->
+    <div id="user-container" class="hidden">
+      <p id="app-error" role="alert"></p>
+
+      <section class="welcome" aria-labelledby="welcome-title">
+        <div>
+          <h1 id="welcome-title">Olá</h1>
+          <p id="welcome-sub" class="welcome-sub"></p>
+        </div>
+        <div id="next-trip" class="next-trip empty passenger-only"></div>
+        <div id="kpis" class="kpis manager-only"></div>
+      </section>
+
+      <section id="day-trips-panel" class="panel manager-only">
+        <div class="panel-heading">
+          <h2 class="panel-title">Viagens do dia <small id="day-trips-date"></small></h2>
+          <small>Avança o estado de cada viagem para simular a operação.</small>
+        </div>
+        <ul id="day-trips" class="trip-list"></ul>
+      </section>
+
+      <div class="booking-row">
+        <section id="reservation-panel" class="panel passenger-only">
+          <div class="panel-heading"><h2 class="panel-title">Nova reserva</h2></div>
+          <form class="form-grid" onsubmit="event.preventDefault(); book()">
+            <label class="field" for="r-vehicle">Veículo
+              <select id="r-vehicle"></select>
+            </label>
+            <label class="field" for="r-pickup">Recolha
+              <select id="r-pickup" class="points"></select>
+            </label>
+            <label class="field" for="r-dropoff">Destino
+              <select id="r-dropoff" class="points"></select>
+            </label>
+            <div class="two">
+              <label class="field" for="r-date">Data
+                <input id="r-date" type="date">
+              </label>
+              <label class="field" for="r-slot">Hora
+                <select id="r-slot"></select>
+              </label>
+            </div>
+            <p id="r-hint" class="form-hint" aria-live="polite"></p>
+            <button type="submit" id="r-submit">Reservar</button>
+          </form>
+        </section>
+
+        <section id="occupancy-panel" class="panel">
+          <div class="panel-heading">
+            <h2 class="panel-title">Ocupação</h2>
+            <div class="panel-tools">
+              <button class="secondary small icon" type="button" onclick="shiftGridDate(-1)" aria-label="Dia anterior">‹</button>
+              <input id="grid-date" type="date" aria-label="Data da ocupação" onchange="onGridDateChange()">
+              <button class="secondary small icon" type="button" onclick="shiftGridDate(1)" aria-label="Dia seguinte">›</button>
+              <button class="secondary small" type="button" onclick="shiftGridDate(0)">Hoje</button>
+            </div>
+          </div>
+          <div class="grid-wrap"><table class="grid" id="grid"></table></div>
+          <div class="legend" aria-hidden="true">
+            <span class="passenger-only"><i></i> Livre (clica para escolher)</span>
+            <span class="passenger-only"><i class="l-mine">●</i> A tua reserva</span>
+            <span><i class="l-busy">●</i> Ocupado</span>
+            <span><i class="l-off"></i> Veículo indisponível</span>
+            <span><i class="l-now"></i> Agora</span>
+          </div>
+        </section>
+      </div>
+
+      <section id="reservations-panel" class="panel passenger-only">
+        <div class="panel-heading">
+          <h2 class="panel-title">As minhas reservas <small id="reservation-count" aria-live="polite"></small></h2>
+        </div>
+        <details class="filters reservation-filters">
+          <summary>Filtros</summary>
+          <div class="fleet-filters">
+            <label for="reservation-status-filter">Estado
+              <select id="reservation-status-filter">
+                <option value="">Todos os estados</option>
+                <option value="booked">Reservada</option>
+                <option value="in_progress">Em curso</option>
+                <option value="completed">Concluída</option>
+              </select>
+            </label>
+            <label for="reservation-vehicle-filter">Veículo
+              <select id="reservation-vehicle-filter">
+                <option value="">Todos os veículos</option>
+              </select>
+            </label>
+            <label for="reservation-date-from">Data inicial
+              <input id="reservation-date-from" type="date">
+            </label>
+            <label for="reservation-date-to">Data final
+              <input id="reservation-date-to" type="date">
+            </label>
+            <label for="reservation-search">Pesquisa
+              <input id="reservation-search" type="search" placeholder="Veículo, recolha, destino…">
+            </label>
+            <div class="fleet-filter-actions">
+              <button class="secondary small" type="button" onclick="clearReservationFilters()">Limpar</button>
+            </div>
+          </div>
+        </details>
+        <ul id="my-reservations" class="trip-list"></ul>
+        <dialog id="feedback-dialog" class="feedback-dialog" aria-labelledby="feedback-title">
+          <form method="dialog">
+            <h4 id="feedback-title">Avaliar viagem</h4>
+            <p id="feedback-trip-details" class="feedback-trip-details"></p>
+            <label class="field" for="feedback-rating">Classificação
+              <select id="feedback-rating" required>
+                <option value="5">5 · Excelente</option>
+                <option value="4">4 · Muito bom</option>
+                <option value="3">3 · Bom</option>
+                <option value="2">2 · Fraco</option>
+                <option value="1">1 · Mau</option>
+              </select>
+            </label>
+            <label class="field" for="feedback-comment">Comentário (opcional)
+              <textarea id="feedback-comment" maxlength="500" placeholder="O que correu bem ou podia melhorar?"></textarea>
+            </label>
+            <small>Só podes avaliar cada viagem uma vez. Máximo de 500 caracteres.</small>
+            <div class="dialog-actions">
+              <button class="secondary" type="submit" value="cancel">Cancelar</button>
+              <button id="feedback-submit" type="button">Enviar avaliação</button>
+            </div>
+          </form>
+        </dialog>
+      </section>
+
+      <section id="fleet-panel" class="panel">
+        <div class="panel-heading">
+          <h2 class="panel-title">Frota <small id="fleet-count" aria-live="polite"></small></h2>
+          <button class="small manager-only" type="button" onclick="newVehicle()">Novo veículo</button>
+        </div>
+        <details class="filters fleet-filters-toggle">
+          <summary>Filtros</summary>
+          <div class="fleet-filters">
+            <label for="fleet-search">Pesquisar veículo
+              <input id="fleet-search" type="search" placeholder="Nome ou ID">
+            </label>
+            <label for="fleet-status-filter">Estado
+              <select id="fleet-status-filter">
+                <option value="">Todos os estados</option>
+                <option value="active">Ativo</option>
+                <option value="maintenance">Em manutenção</option>
+                <option value="inactive">Inativo</option>
+              </select>
+            </label>
+            <label for="fleet-location-filter">Localização
+              <select id="fleet-location-filter">
+                <option value="">Todas as localizações</option>
+              </select>
+            </label>
+            <label for="fleet-battery-filter">Bateria
+              <select id="fleet-battery-filter">
+                <option value="">Qualquer nível</option>
+                <option value="75">75% ou mais</option>
+                <option value="50-74">50% a 74%</option>
+                <option value="25-49">25% a 49%</option>
+                <option value="0-24">Menos de 25%</option>
+              </select>
+            </label>
+            <div class="fleet-filter-actions">
+              <button class="secondary small" type="button" onclick="clearFleetFilters()">Limpar filtros</button>
+            </div>
+          </div>
+        </details>
+        <div id="fleet" class="fleet-grid"></div>
+        <dialog id="vehicle-dialog" aria-labelledby="vehicle-dialog-title">
+          <form onsubmit="event.preventDefault(); saveVehicle()" novalidate>
+            <h4 id="vehicle-dialog-title">Novo veículo</h4>
+            <label class="field" for="v-id">ID
+              <input id="v-id" placeholder="ex.: taxi_07" autocomplete="off">
+            </label>
+            <label class="field" for="v-name">Nome
+              <input id="v-name" placeholder="ex.: RoboTaxi Eta" autocomplete="off">
+            </label>
+            <label class="field" for="v-status">Estado
+              <select id="v-status">
+                <option value="active">Ativo</option>
+                <option value="maintenance">Em manutenção</option>
+                <option value="inactive">Inativo</option>
+              </select>
+            </label>
+            <label class="field" for="v-location">Localização
+              <select id="v-location" class="points"></select>
+            </label>
+            <label class="field" for="v-battery">Bateria (%)
+              <input id="v-battery" type="number" min="0" max="100" inputmode="numeric">
+            </label>
+            <p id="v-msg" class="error" role="alert"></p>
+            <div class="dialog-actions">
+              <button class="secondary" type="button" onclick="document.getElementById('vehicle-dialog').close()">Cancelar</button>
+              <button type="submit">Guardar</button>
+            </div>
+          </form>
+        </dialog>
       </section>
 
       <section id="feedback-panel" class="panel manager-only">
-        <h3 class="panel-title">Feedback dos passageiros</h3>
-        <div id="manager-feedback-list" class="feedback-list" aria-live="polite">
-          <p class="stats-empty">Ainda não há feedback sobre viagens concluídas.</p>
-        </div>
+        <div class="panel-heading"><h2 class="panel-title">Avaliações dos passageiros</h2></div>
+        <div id="manager-feedback-list" class="feedback-list" aria-live="polite"></div>
       </section>
 
-    <section id="reservation-panel" class="panel passenger-only">
-      <h3 class="panel-title">Nova reserva</h3>
-      <select id="r-vehicle"></select>
-      Recolha <select id="r-pickup" class="points"></select>
-      Destino <select id="r-dropoff" class="points"></select>
-      <input id="r-date" type="date">
-      <select id="r-slot" class="slots"></select>
-      <button onclick="book()">Reservar</button>
-    </section>
-
-    <section id="reservations-panel" class="panel passenger-only">
-      <h3 class="panel-title">As minhas reservas</h3>
-      <details class="reservation-filters">
-        <summary>Filtros <small id="reservation-count" aria-live="polite"></small></summary>
+      <section id="manager-stats-panel" class="panel manager-only">
+        <div class="panel-heading">
+          <h2 class="panel-title">Estatísticas <small id="stats-reservation-count" aria-live="polite"></small></h2>
+          <div class="stats-export-actions">
+            <button id="stats-export-open" class="secondary small" type="button" disabled>Exportar</button>
+          </div>
+        </div>
         <div class="fleet-filters">
-          <label for="reservation-status-filter">Estado
-            <select id="reservation-status-filter">
-              <option value="">Todos os estados</option>
-              <option value="booked">Reservada</option>
-              <option value="in_progress">Em curso</option>
-              <option value="completed">Concluída</option>
+          <label for="stats-period">Período
+            <select id="stats-period">
+              <option value="7">Últimos 7 dias</option>
+              <option value="30" selected>Últimos 30 dias</option>
+              <option value="90">Últimos 90 dias</option>
+              <option value="custom">Personalizado</option>
             </select>
           </label>
-          <label for="reservation-vehicle-filter">Veículo
-            <select id="reservation-vehicle-filter">
-              <option value="">Todos os veículos</option>
+          <label for="stats-date-from">Data inicial
+            <input id="stats-date-from" type="date">
+          </label>
+          <label for="stats-date-to">Data final
+            <input id="stats-date-to" type="date">
+          </label>
+          <label for="stats-vehicle-filter">Filtrar por táxi
+            <select id="stats-vehicle-filter">
+              <option value="">Todos os táxis</option>
             </select>
-          </label>
-          <label for="reservation-date-from">Data inicial
-            <input id="reservation-date-from" type="date">
-          </label>
-          <label for="reservation-date-to">Data final
-            <input id="reservation-date-to" type="date">
-          </label>
-          <label for="reservation-search">Pesquisa
-            <input id="reservation-search" type="search" placeholder="Veículo, recolha, destino…">
           </label>
           <div class="fleet-filter-actions">
-            <button class="secondary" type="button" onclick="clearReservationFilters()">Limpar</button>
+            <button class="secondary small" type="button" onclick="clearStatsFilters()">Limpar filtros</button>
           </div>
         </div>
-      </details>
-      <div class="grid-wrap"><table>
-        <thead><tr><th>Veículo</th><th>Data</th><th>Bloco</th><th>Recolha</th><th>Destino</th><th>Estado</th><th>Ações</th></tr></thead>
-        <tbody id="my-reservations"></tbody>
-      </table></div>
-      <p id="feedback-status" aria-live="polite"></p>
-      <dialog id="feedback-dialog" class="stats-export-dialog feedback-dialog" aria-labelledby="feedback-title">
-        <form method="dialog">
-          <h4 id="feedback-title">Avaliar viagem</h4>
-          <p id="feedback-trip-details" class="feedback-trip-details"></p>
-          <label for="feedback-rating">Classificação
-            <select id="feedback-rating" required>
-              <option value="5">5 — Excelente</option>
-              <option value="4">4 — Muito bom</option>
-              <option value="3">3 — Bom</option>
-              <option value="2">2 — Fraco</option>
-              <option value="1">1 — Mau</option>
-            </select>
-          </label>
-          <label for="feedback-comment">Comentário (opcional)
-            <textarea id="feedback-comment" maxlength="500" placeholder="O que correu bem ou podia melhorar?"></textarea>
-          </label>
-          <small>O feedback só pode ser enviado uma vez por viagem concluída. Máximo de 500 caracteres.</small>
-          <div class="stats-export-dialog-actions">
-            <button class="secondary" type="submit" value="cancel">Cancelar</button>
-            <button id="feedback-submit" type="button">Enviar feedback</button>
-          </div>
-        </form>
-      </dialog>
-    </section>
-
-    <section id="occupancy-panel" class="panel">
-      <div class="panel-heading">
-        <h3 class="panel-title">Ocupação (Veículo x Bloco Horário)</h3>
-        <input id="grid-date" type="date" aria-label="Data da ocupação" onchange="watchGrid()">
-      </div>
-      <div class="grid-wrap"><table class="grid" id="grid"></table></div>
-      <small>Rosa = ocupado · Carmim = a sua reserva · Cinzento = veículo indisponível</small>
-    </section>
-
-    <section id="day-trips-panel" class="panel manager-only">
-      <h3 class="panel-title">Viagens do dia selecionado</h3>
-      <div class="grid-wrap"><table>
-        <thead><tr><th>Bloco</th><th>Veículo</th><th>Passageiro</th><th>Recolha</th><th>Destino</th><th>Estado</th></tr></thead>
-        <tbody id="day-trips"></tbody>
-      </table></div>
-    </section>
-
-    <section id="manager-stats-panel" class="panel manager-only">
-      <h3 class="panel-title">Estatísticas</h3>
-      <div class="fleet-filters">
-        <label for="stats-period">Período
-          <select id="stats-period">
-            <option value="7">Últimos 7 dias</option>
-            <option value="30" selected>Últimos 30 dias</option>
-            <option value="90">Últimos 90 dias</option>
-            <option value="custom">Personalizado</option>
-          </select>
-        </label>
-        <label for="stats-date-from">Data inicial
-          <input id="stats-date-from" type="date">
-        </label>
-        <label for="stats-date-to">Data final
-          <input id="stats-date-to" type="date">
-        </label>
-        <label for="stats-vehicle-filter">Filtrar por táxi
-          <select id="stats-vehicle-filter">
-            <option value="">Todos os táxis</option>
-          </select>
-        </label>
-        <div class="fleet-filter-actions">
-          <button class="secondary" type="button" onclick="clearStatsFilters()">Limpar filtros</button>
-          <small id="stats-reservation-count" aria-live="polite"></small>
+        <div class="stats-cards" aria-live="polite">
+          <article class="stats-card">
+            <span>Total de reservas</span>
+            <strong id="stats-total">0</strong>
+            <small id="stats-period-comparison" class="stats-comparison"></small>
+          </article>
+          <article class="stats-card">
+            <span>Viagens concluídas</span>
+            <strong id="stats-completed">0</strong>
+          </article>
+          <article class="stats-card">
+            <span>Viagens em curso</span>
+            <strong id="stats-in-progress">0</strong>
+          </article>
+          <article class="stats-card">
+            <span>Média de reservas por táxi</span>
+            <strong id="stats-average-per-taxi">0,0</strong>
+            <small>Com base na frota incluída no filtro.</small>
+          </article>
         </div>
-      </div>
-      <div class="stats-cards" aria-live="polite">
-        <article class="stats-card">
-          <span>Total de reservas</span>
-          <strong id="stats-total">0</strong>
-          <small id="stats-period-comparison" class="stats-comparison"></small>
-        </article>
-        <article class="stats-card">
-          <span>Viagens concluídas</span>
-          <strong id="stats-completed">0</strong>
-        </article>
-        <article class="stats-card">
-          <span>Viagens em curso</span>
-          <strong id="stats-in-progress">0</strong>
-        </article>
-        <article class="stats-card">
-          <span>Média de reservas por táxi</span>
-          <strong id="stats-average-per-taxi">0,0</strong>
-          <small>Com base na frota incluída no filtro.</small>
-        </article>
-      </div>
-      <h4>Reservas ao longo do tempo</h4>
-      <div id="stats-trend-chart" class="stats-chart" aria-live="polite"></div>
-      <div class="stats-breakdown-grid">
-        <section>
-          <h4>Procura por dia da semana</h4>
-          <div id="stats-weekday-chart" class="stats-bar-list"></div>
-        </section>
-        <section>
-          <h4>Procura por hora</h4>
-          <div id="stats-hour-chart" class="stats-bar-list"></div>
-        </section>
-        <section>
-          <h4>Reservas por táxi</h4>
-          <div id="stats-taxi-chart" class="stats-bar-list"></div>
-        </section>
-      </div>
-      <h4>Resumo por táxi</h4>
-      <div class="stats-taxi-summary">
-        <table>
-          <thead><tr><th>Táxi</th><th>Total</th><th>Reservadas</th><th>Em curso</th><th>Concluídas</th></tr></thead>
-          <tbody id="stats-taxi-summary"></tbody>
-        </table>
-      </div>
-      <small>A série temporal agrupa por dia, semana ou mês conforme o intervalo. As reservas canceladas não aparecem porque são removidas do sistema.</small>
-      <div class="stats-export-actions">
-        <button id="stats-export-open" class="secondary" type="button" disabled>Exportar</button>
-      </div>
-      <dialog id="stats-export-dialog" class="stats-export-dialog" aria-labelledby="stats-export-title">
-        <form method="dialog">
-          <h4 id="stats-export-title">Exportar estatísticas</h4>
-          <label for="stats-export-format">Formato
-            <select id="stats-export-format">
-              <option value="pdf">PDF — relatório com gráfico e tabelas</option>
-              <option value="csv">CSV — dados das estatísticas</option>
-              <option value="svg">Imagem SVG — gráfico temporal</option>
-            </select>
-          </label>
-          <small>Para PDF, escolhe “Guardar como PDF” na janela de impressão do navegador.</small>
-          <div class="stats-export-dialog-actions">
-            <button class="secondary" type="submit" value="cancel">Cancelar</button>
-            <button id="stats-export-confirm" type="button">Exportar</button>
-          </div>
-        </form>
-      </dialog>
-    </section>
+        <h4>Reservas ao longo do tempo</h4>
+        <div id="stats-trend-chart" class="stats-chart" aria-live="polite"></div>
+        <div class="stats-breakdown-grid">
+          <section>
+            <h4>Procura por dia da semana</h4>
+            <div id="stats-weekday-chart" class="stats-bar-list"></div>
+          </section>
+          <section>
+            <h4>Procura por hora</h4>
+            <div id="stats-hour-chart" class="stats-bar-list"></div>
+          </section>
+          <section>
+            <h4>Reservas por táxi</h4>
+            <div id="stats-taxi-chart" class="stats-bar-list"></div>
+          </section>
+        </div>
+        <h4>Resumo por táxi</h4>
+        <div class="stats-taxi-summary">
+          <table>
+            <thead><tr><th>Táxi</th><th>Total</th><th>Reservadas</th><th>Em curso</th><th>Concluídas</th></tr></thead>
+            <tbody id="stats-taxi-summary"></tbody>
+          </table>
+        </div>
+        <small class="stats-note">A série temporal agrupa por dia, semana ou mês conforme o intervalo. As reservas canceladas não aparecem porque são removidas do sistema.</small>
+        <dialog id="stats-export-dialog" class="stats-export-dialog" aria-labelledby="stats-export-title">
+          <form method="dialog">
+            <h4 id="stats-export-title">Exportar estatísticas</h4>
+            <label class="field" for="stats-export-format">Formato
+              <select id="stats-export-format">
+                <option value="pdf">PDF · relatório com gráfico e tabelas</option>
+                <option value="csv">CSV · dados das estatísticas</option>
+                <option value="svg">Imagem SVG · gráfico temporal</option>
+              </select>
+            </label>
+            <small>Para PDF, escolhe "Guardar como PDF" na janela de impressão do navegador.</small>
+            <div class="stats-export-dialog-actions">
+              <button class="secondary" type="submit" value="cancel">Cancelar</button>
+              <button id="stats-export-confirm" type="button">Exportar</button>
+            </div>
+          </form>
+        </dialog>
+      </section>
+    </div>
+  </main>
 
+  <footer class="app-footer">Projeto académico · Computação em Nuvem · ISLA Gaia · Grupo B</footer>
 
-  </div>
+  <!-- Confirmações (reservar, cancelar) no estilo da app, em vez do confirm() do browser -->
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title">
+    <form method="dialog">
+      <h4 id="confirm-title"></h4>
+      <div id="confirm-body"></div>
+      <div class="dialog-actions">
+        <button class="secondary" type="submit" value="cancel">Voltar</button>
+        <button id="confirm-ok" type="submit" value="ok">Confirmar</button>
+      </div>
+    </form>
+  </dialog>
+  <div id="toasts" role="status" aria-live="polite"></div>
 
   <!-- O CI troca ?v= pelo commit em cada deploy: browsers com o app.js antigo em cache vão buscar o novo -->
   <script type="module" src="app.js?v=19"></script>
