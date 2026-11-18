@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, connectAuthEmulator, sendEmailVerification, sendPasswordResetEmail }
   from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc, collection, query, where, onSnapshot, serverTimestamp, connectFirestoreEmulator, writeBatch }
+import { getFirestore, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, query, where, onSnapshot, serverTimestamp, connectFirestoreEmulator, writeBatch }
   from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -26,6 +26,7 @@ if (local) {
 const POINTS = ["Entrada Norte", "Entrada Sul", "Biblioteca", "Cantina", "Residências", "Parque de Estacionamento"];
 // Blocos fixos de 30 minutos, 08:00–19:30.
 const SLOTS = Array.from({ length: 24 }, (_, i) => `${String(8 + Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
+const MAX_DAYS_AHEAD = 30; // igual a withinHorizon() em firestore.rules
 const MIN_BATTERY = 20; // igual a minBattery() em firestore.rules
 const TRIP_BATTERY = 5; // % gasta em cada viagem concluída
 const STATUS = { active: "Ativo", maintenance: "Em manutenção", inactive: "Inativo" };
@@ -118,10 +119,12 @@ setStatsPeriod("30");
 const today = new Date().toISOString().slice(0, 10);
 $("r-date").value = today;
 $("r-date").min = today;
+$("r-date").max = new Date(Date.now() + MAX_DAYS_AHEAD * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 $("grid-date").value = today;
 // Formulário e grelha partilham a data: o passageiro vê os blocos livres do dia que vai reservar.
 $("r-date").addEventListener("change", () => {
   if (!$("r-date").value || $("r-date").value < today) $("r-date").value = today;
+  if ($("r-date").value > $("r-date").max) $("r-date").value = $("r-date").max;
   $("grid-date").value = $("r-date").value;
   watchGrid();
 });
@@ -137,7 +140,7 @@ onAuthStateChanged(auth, async (user) => {
   $("user-container").classList.toggle("hidden", !user?.emailVerified);
   $("session").classList.toggle("hidden", !user?.emailVerified);
   document.body.classList.remove("role-manager", "role-passenger");
-  if (!user) { me = null; myFeedback = []; managerFeedback = []; return; }
+  if (!user) { me = null; myFeedback = []; managerFeedback = []; slotsBackfilled = false; return; }
   // As regras recusam tudo a contas com e-mail por confirmar.
   if (!user.emailVerified) { $("verify-email").innerText = user.email; return; }
 
@@ -171,6 +174,7 @@ onAuthStateChanged(auth, async (user) => {
     unsubs.push(onSnapshot(query(collection(db, "reservations"), where("userId", "==", user.uid)), (qs) => {
       myReservations = qs.docs.map((d) => d.data()).sort((a, b) => (a.date + a.timeSlot).localeCompare(b.date + b.timeSlot));
       renderMyReservations();
+      renderGrid();
     }, showError));
     unsubs.push(onSnapshot(query(collection(db, "feedback"), where("userId", "==", user.uid)), (qs) => {
       myFeedback = qs.docs.map((d) => d.data());
@@ -182,6 +186,7 @@ onAuthStateChanged(auth, async (user) => {
     myFeedback = [];
     unsubs.push(onSnapshot(collection(db, "reservations"), (qs) => {
       managerReservations = qs.docs.map((d) => d.data());
+      backfillSlots();
       renderWelcome();
       renderManagerStats();
       renderManagerFeedback();
@@ -193,6 +198,18 @@ onAuthStateChanged(auth, async (user) => {
   }
   watchGrid();
 });
+
+// Reservas criadas antes de existir a ocupação pública (/slots) ganham o seu bloco na primeira sessão do gestor.
+let slotsBackfilled = false;
+async function backfillSlots() {
+  if (slotsBackfilled || me?.role !== "manager") return;
+  slotsBackfilled = true;
+  try {
+    const existing = new Set((await getDocs(collection(db, "slots"))).docs.map((d) => d.id));
+    await Promise.all(managerReservations.filter((r) => !existing.has(r.reservationId)).map((r) =>
+      setDoc(doc(db, "slots", r.reservationId), { vehicleId: r.vehicleId, date: r.date, timeSlot: r.timeSlot }).catch(() => {})));
+  } catch { slotsBackfilled = false; }
+}
 
 // Saudação + resumo: próxima viagem (passageiro) ou indicadores do dia (gestor).
 function renderWelcome() {
@@ -418,11 +435,11 @@ function buildTrendBuckets(dateFrom, dateTo, reservations) {
 function renderStatsTrend(dateFrom, dateTo, reservations, trendData = buildTrendBuckets(dateFrom, dateTo, reservations)) {
   const { buckets, unit } = trendData;
   const chartWidth = 900;
-  const chartHeight = 330;
+  const chartHeight = 250;
   const plotX = 56;
   const plotY = 28;
   const plotWidth = 820;
-  const plotHeight = 232;
+  const plotHeight = 152;
   const maximum = Math.max(1, ...buckets.map((bucket) => bucket.value));
   const ticks = [...new Set([0, Math.ceil(maximum / 2), maximum])];
   const x = (index) => buckets.length < 2
@@ -446,7 +463,7 @@ function renderStatsTrend(dateFrom, dateTo, reservations, trendData = buildTrend
   }
   const visibleLabels = new Set(labelIndexes);
   const labels = buckets.map((bucket, index) => visibleLabels.has(index)
-    ? `<text class="stats-chart-category" x="${x(index)}" y="${plotY + plotHeight + 24}" text-anchor="middle">${esc(bucket.label)}</text>`
+    ? `<text class="stats-chart-category" x="${x(index)}" y="${plotY + plotHeight + 24}" text-anchor="${index === lastIndex && buckets.length > 1 ? "end" : index === 0 && buckets.length > 1 ? "start" : "middle"}">${esc(bucket.label)}</text>`
     : "").join("");
   $("stats-trend-chart").innerHTML = `<svg class="stats-chart-svg stats-trend-svg" role="img" aria-label="Reservas ao longo do tempo" viewBox="0 0 ${chartWidth} ${chartHeight}" xmlns="http://www.w3.org/2000/svg">
     ${grid}
@@ -780,8 +797,10 @@ window.clearReservationFilters = () => {
 
 window.watchGrid = () => {
   if (gridUnsub) gridUnsub();
-  gridUnsub = onSnapshot(query(collection(db, "reservations"), where("date", "==", $("grid-date").value)), (qs) => {
-    gridReservations = qs.docs.map((d) => d.data());
+  // O gestor vê as reservas completas; o passageiro só a ocupação pública (sem dados de quem reservou).
+  const source = me?.role === "manager" ? "reservations" : "slots";
+  gridUnsub = onSnapshot(query(collection(db, source), where("date", "==", $("grid-date").value)), (qs) => {
+    gridReservations = qs.docs.map((d) => ({ ...d.data(), reservationId: d.id }));
     renderGrid();
   }, showError);
 };
@@ -823,16 +842,19 @@ function renderGrid() {
 
   const head = `<thead><tr><th scope="col">Veículo</th>${SLOTS.filter((_, i) => i % 2 === 0).map((s) =>
     `<th scope="col" colspan="2" class="${nowSlot?.slice(0, 2) === s.slice(0, 2) ? "now-hour" : ""}">${s.slice(0, 2)}h</th>`).join("")}</tr></thead>`;
+  // "RoboTaxi Alpha" → "Alpha" quando todos os nomes começam pela mesma palavra (cabe no telemóvel).
+  const firstWords = new Set(vehicles.map((v) => String(v.name).split(" ")[0]));
+  const shortName = (v) => firstWords.size === 1 && vehicles.length > 1 && String(v.name).includes(" ") ? String(v.name).split(" ").slice(1).join(" ") : v.name;
   const body = vehicles.map((v) => {
     const bookable = v.status === "active" && Number(v.batteryLevel) >= MIN_BATTERY;
-    return `<tr><th scope="row" title="${esc(v.name)}">${esc(v.name)}</th>${SLOTS.map((s, i) => {
+    return `<tr><th scope="row" title="${esc(v.name)}"><span class="full-name">${esc(v.name)}</span><span class="short-name" aria-hidden="true">${esc(shortName(v))}</span></th>${SLOTS.map((s, i) => {
       const key = `${v.vehicleId}_${s}`;
       const r = taken.get(key);
       const cls = [i % 2 ? "half" : "", s === nowSlot ? "now" : ""];
       let content = "";
       let title = "";
       if (r) {
-        const mine = r.userId === me?.uid;
+        const mine = !isManager && myReservations.some((m) => m.reservationId === r.reservationId);
         cls.push(mine ? "mine" : "busy");
         title = isManager ? `${r.passengerName}: ${r.pickupPoint} → ${r.dropoffPoint} (${s})` : mine ? `A tua reserva às ${s}` : `Ocupado às ${s}`;
         content = `<span aria-label="${esc(title)}">●</span>`;
@@ -898,10 +920,14 @@ window.book = async () => {
   if (!confirmed) return;
   const reservationId = `${vehicleId}_${date.replaceAll("-", "")}_${timeSlot.replace(":", "")}`;
   try {
-    await setDoc(doc(db, "reservations", reservationId), {
+    // Reserva (privada) + bloco público no mesmo batch: ou os dois ou nenhum.
+    const batch = writeBatch(db);
+    batch.set(doc(db, "reservations", reservationId), {
       reservationId, vehicleId, userId: me.uid, passengerName: me.name,
       pickupPoint, dropoffPoint, date, timeSlot, status: "booked", createdAt: serverTimestamp()
     });
+    batch.set(doc(db, "slots", reservationId), { vehicleId, date, timeSlot });
+    await batch.commit();
     toast(`Reserva confirmada: ${vehicleName(vehicleId)}, ${formatDisplayDate(date)} às ${timeSlot}.`);
   } catch (err) {
     // ID determinístico: se o bloco já existe, as Security Rules recusam.
@@ -915,7 +941,10 @@ window.cancelReservation = async (id) => {
   const details = r ? `<p>${esc(vehicleName(r.vehicleId))}, ${esc(formatDisplayDate(r.date))} às ${esc(r.timeSlot)}. O bloco volta a ficar livre.</p>` : "";
   if (!(await ask("Cancelar esta reserva?", details, "Cancelar reserva"))) return;
   try {
-    await deleteDoc(doc(db, "reservations", id));
+    const batch = writeBatch(db);
+    batch.delete(doc(db, "reservations", id));
+    batch.delete(doc(db, "slots", id));
+    await batch.commit();
     toast("Reserva cancelada.");
   } catch (err) { showError(err); }
 };
@@ -1033,6 +1062,10 @@ const AUTH_ERRORS = {
   "auth/weak-password": "A palavra-passe tem de ter pelo menos 6 caracteres.",
   "auth/missing-password": "Indica a palavra-passe.",
   "auth/invalid-credential": "E-mail ou palavra-passe errados.",
+  "auth/wrong-password": "E-mail ou palavra-passe errados.",
+  "auth/user-not-found": "E-mail ou palavra-passe errados.",
+  "auth/user-disabled": "Esta conta foi desativada.",
+  "auth/network-request-failed": "Sem ligação ao servidor. Verifica a internet e tenta outra vez.",
   "auth/too-many-requests": "Demasiadas tentativas. Espera um pouco e tenta outra vez."
 };
 const authMessage = (err) => AUTH_ERRORS[err.code] || err.message;
@@ -1124,3 +1157,11 @@ window.checkVerified = async () => {
 };
 
 window.logout = () => signOut(auth);
+
+// Tema claro/escuro: começa pela preferência do sistema; a escolha manual fica guardada neste browser.
+window.toggleTheme = () => {
+  const root = document.documentElement;
+  const current = root.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  root.dataset.theme = current === "dark" ? "light" : "dark";
+  try { localStorage.setItem("theme", root.dataset.theme); } catch { /* modo privado: vale só para esta visita */ }
+};

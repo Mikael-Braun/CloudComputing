@@ -16,6 +16,15 @@ service cloud.firestore {
       return timestamp.date(int(p[0]), int(p[1]), int(p[2]))
         + duration.value(int(t[0]) * 60 + int(t[1]), 'm') > request.time;
     }
+    // Reservas só até 30 dias à frente: ninguém bloqueia a frota com datas longínquas.
+    function withinHorizon(date) {
+      let p = date.split('-');
+      return timestamp.date(int(p[0]), int(p[1]), int(p[2])) <= request.time + duration.value(30, 'd');
+    }
+    function campusPoints() {
+      return ['Entrada Norte', 'Entrada Sul', 'Biblioteca', 'Cantina', 'Residências', 'Parque de Estacionamento'];
+    }
+    function validName(name) { return name is string && name.size() > 0 && name.size() <= 80; }
     // Abaixo disto o veículo não aceita reservas novas (precisa de carregar).
     function minBattery() { return 20; }
     function ownsCompletedReservation(reservationId) {
@@ -31,10 +40,15 @@ service cloud.firestore {
       // O perfil nasce no registo, antes da confirmação do e-mail.
       allow create: if request.auth != null && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(['uid', 'name', 'email', 'role', 'createdAt'])
+        && request.resource.data.keys().hasAll(['uid', 'name', 'email', 'role', 'createdAt'])
         && request.resource.data.uid == uid
+        && validName(request.resource.data.name)
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.createdAt == request.time
         && request.resource.data.role == 'passenger';
       allow update: if signedIn() && request.auth.uid == uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name'])
+        && validName(request.resource.data.name);
       allow delete: if false;
     }
 
@@ -45,6 +59,8 @@ service cloud.firestore {
         && request.resource.data.vehicleId == vehicleId
         && vehicleId.matches('^[a-z0-9_]+$')
         && request.resource.data.name is string && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 60
+        && request.resource.data.currentLocation is string && request.resource.data.currentLocation.size() <= 60
         && request.resource.data.status in ['active', 'maintenance', 'inactive']
         && request.resource.data.batteryLevel is int
         && request.resource.data.batteryLevel >= 0 && request.resource.data.batteryLevel <= 100;
@@ -54,11 +70,18 @@ service cloud.firestore {
     // Reservas: ID determinístico veiculo_data_bloco impede sobreposição
     // (um create sobre um ID existente é rejeitado pelo próprio Firestore).
     match /reservations/{reservationId} {
-      // A grelha Veículo x Bloco Horário precisa de ver todos os blocos ocupados.
-      allow read: if signedIn();
+      // Dados pessoais (quem, de onde, para onde): só o próprio passageiro e o gestor.
+      // A grelha de ocupação lê a coleção pública /slots, que só diz que o bloco está ocupado.
+      allow read: if signedIn() && (resource.data.userId == request.auth.uid || isManager());
       allow create: if signedIn()
         && request.resource.data.keys().hasOnly(['reservationId', 'vehicleId', 'userId', 'passengerName',
              'pickupPoint', 'dropoffPoint', 'date', 'timeSlot', 'status', 'createdAt'])
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.pickupPoint in campusPoints()
+        && request.resource.data.dropoffPoint in campusPoints()
+        && withinHorizon(request.resource.data.date)
+        // A reserva e o bloco público nascem no mesmo batch: ou os dois ou nenhum.
+        && existsAfter(/databases/$(database)/documents/slots/$(reservationId))
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.status == 'booked'
         && request.resource.data.reservationId == reservationId
@@ -80,8 +103,30 @@ service cloud.firestore {
         && ((resource.data.status == 'booked' && request.resource.data.status == 'in_progress')
           || (resource.data.status == 'in_progress' && request.resource.data.status == 'completed'));
       // Cancelar = apagar, o que liberta o bloco. O passageiro só cancela antes de a viagem começar.
+      // O gestor não apaga viagens concluídas (histórico e estatísticas). O bloco público sai no mesmo batch.
       allow delete: if signedIn()
-        && ((resource.data.userId == request.auth.uid && resource.data.status == 'booked') || isManager());
+        && ((resource.data.userId == request.auth.uid && resource.data.status == 'booked')
+          || (isManager() && resource.data.status != 'completed'))
+        && !existsAfter(/databases/$(database)/documents/slots/$(reservationId));
+    }
+
+    // Ocupação pública: um documento por bloco reservado, sem dados pessoais (só veículo, data e hora).
+    match /slots/{reservationId} {
+      allow read: if signedIn();
+      // Criado com a reserva (mesmo batch) pelo dono, ou pelo gestor para reservas antigas sem bloco.
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['vehicleId', 'date', 'timeSlot'])
+        && request.resource.data.keys().hasAll(['vehicleId', 'date', 'timeSlot'])
+        && existsAfter(/databases/$(database)/documents/reservations/$(reservationId))
+        && getAfter(/databases/$(database)/documents/reservations/$(reservationId)).data.vehicleId == request.resource.data.vehicleId
+        && getAfter(/databases/$(database)/documents/reservations/$(reservationId)).data.date == request.resource.data.date
+        && getAfter(/databases/$(database)/documents/reservations/$(reservationId)).data.timeSlot == request.resource.data.timeSlot
+        && (getAfter(/databases/$(database)/documents/reservations/$(reservationId)).data.userId == request.auth.uid || isManager());
+      allow update: if false;
+      // Sai com a reserva (mesmo batch, autorizado pela regra de delete da reserva); blocos órfãos só o gestor limpa.
+      allow delete: if signedIn()
+        && !existsAfter(/databases/$(database)/documents/reservations/$(reservationId))
+        && (exists(/databases/$(database)/documents/reservations/$(reservationId)) || isManager());
     }
 
     // Feedback: uma avaliação por viagem concluída, enviada pelo próprio passageiro.

@@ -9,11 +9,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Work+Sans:wght@500;600&display=swap" rel="stylesheet">
+  <script>try { const t = localStorage.getItem("theme"); if (t === "dark" || t === "light") document.documentElement.dataset.theme = t; } catch {}</script>
   <style>
     /* ---------- Tokens: uma cor de destaque (carmim ISLA Gaia), um sistema de raios, espaços em múltiplos de 4 ---------- */
     :root {
       color-scheme: light dark;
       --accent: #8f2d3d;
+      --header-bg: #8f2d3d; --header-ink: #ffffff;
       --accent-hover: #67202c;
       --accent-soft: #f6e9ec;
       --on-accent: #ffffff;
@@ -39,10 +41,11 @@
       --ease-out: cubic-bezier(.2, 0, 0, 1);
       --t-fast: 150ms; --t-base: 220ms;
     }
+    /* Tema escuro: por preferência do sistema ou escolhido no botão do cabeçalho (data-theme guardado no browser). */
     @media (prefers-color-scheme: dark) {
-      :root {
-        --accent: #d0677a;
-        --accent-hover: #dd8394;
+      :root:not([data-theme="light"]) {
+        --accent: #e9909f;
+        --accent-hover: #f2aab6;
         --accent-soft: #3a2228;
         --on-accent: #1a1214;
         --ink: #f1ecec;
@@ -56,10 +59,34 @@
         --warn: #f0b765; --warn-soft: #3a2c14;
         --off: #b3aaac;  --off-soft: #322d2e;
         --info: #9cc1f2; --info-soft: #1c2b40;
-        --ring: rgba(208, 103, 122, .4);
+        --ring: rgba(233, 144, 159, .45);
         --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+        --header-bg: #4a1822; --header-ink: #ffffff;
+        color-scheme: dark;
       }
     }
+    :root[data-theme="dark"] {
+      --accent: #e9909f;
+      --accent-hover: #f2aab6;
+      --accent-soft: #3a2228;
+      --on-accent: #1a1214;
+      --ink: #f1ecec;
+      --ink-muted: #b3aaac;
+      --surface: #231f20;
+      --surface-2: #2b2627;
+      --canvas: #181516;
+      --line: #3a3435;
+      --line-strong: #4c4546;
+      --ok: #7fd3a6;   --ok-soft: #1c3428;
+      --warn: #f0b765; --warn-soft: #3a2c14;
+      --off: #b3aaac;  --off-soft: #322d2e;
+      --info: #9cc1f2; --info-soft: #1c2b40;
+      --ring: rgba(233, 144, 159, .45);
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+      --header-bg: #4a1822; --header-ink: #ffffff;
+      color-scheme: dark;
+    }
+    :root[data-theme="light"] { color-scheme: light; }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; }
     }
@@ -142,8 +169,22 @@
       position: sticky;
       top: 0;
       z-index: 10;
-      border-bottom: 1px solid var(--line);
-      background: var(--surface);
+      background: var(--header-bg);
+      color: var(--header-ink);
+      box-shadow: 0 1px 0 rgba(0, 0, 0, .12);
+    }
+    .app-header .brand, .app-header .role-badge { color: var(--header-ink); }
+    .app-header .brand span span { color: var(--header-ink); opacity: .8; }
+    .app-header .role-badge { opacity: .85; }
+    .app-header button.secondary { border-color: rgba(255, 255, 255, .55); background: transparent; color: var(--header-ink); }
+    .app-header button.secondary:hover { border-color: #fff; background: rgba(255, 255, 255, .14); color: var(--header-ink); }
+    .app-header button:focus-visible { box-shadow: 0 0 0 3px rgba(255, 255, 255, .6); }
+    .header-tools { display: flex; align-items: center; gap: var(--s3); min-width: 0; }
+    .theme-toggle svg { width: 18px; height: 18px; }
+    :root[data-theme="dark"] .theme-toggle .to-dark, :root:not([data-theme="dark"]) .theme-toggle .to-light { display: none; }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme]) .theme-toggle .to-dark { display: none; }
+      :root:not([data-theme]) .theme-toggle .to-light { display: inline; }
     }
     .app-header-inner, main, .app-footer {
       width: min(1200px, 100%);
@@ -201,8 +242,8 @@
       gap: var(--s4);
       padding: var(--s4) var(--s5);
       border-radius: var(--r-card);
-      background: var(--accent);
-      color: var(--on-accent);
+      background: var(--header-bg);
+      color: var(--header-ink);
     }
     .next-trip small { color: inherit; opacity: .85; }
     .next-trip strong { display: block; font: 600 var(--fs-lg) var(--font-display); }
@@ -210,7 +251,7 @@
     .next-trip-time { flex: none; font: 600 var(--fs-xl) var(--font-display); text-align: right; }
     .next-trip-time small { display: block; font: 400 var(--fs-xs) var(--font-body); }
     .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s3); }
-    .kpi { display: grid; gap: 2px; padding: var(--s3) var(--s4); border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface); }
+    .kpi { display: grid; gap: 2px; padding: var(--s3) var(--s4); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: var(--r-card); background: var(--surface); }
     .kpi span { color: var(--ink-muted); font-size: var(--fs-xs); }
     .kpi strong { font: 600 var(--fs-xl) var(--font-display); }
     .kpi.alert strong { color: var(--warn); }
@@ -287,7 +328,8 @@
     .battery.mid .battery-fill { background: var(--warn); }
     .battery.low .battery-fill { background: var(--accent); }
     .battery.low span:last-child { color: var(--accent); font-weight: 700; }
-    .vehicle-actions { display: flex; gap: var(--s2); }
+    .vehicle { align-content: space-between; }
+    .vehicle-actions { display: flex; gap: var(--s2); align-self: end; }
     .vehicle-actions button { flex: 1; }
 
     /* Listas de viagens (minhas reservas e viagens do dia) */
@@ -320,6 +362,7 @@
     .grid th, .grid td { height: 40px; padding: 0; border-bottom: 1px solid var(--line); font-size: var(--fs-xs); text-align: center; }
     .grid tr:last-child > * { border-bottom: 0; }
     .grid thead th { height: 32px; background: var(--surface-2); color: var(--ink-muted); font-weight: 500; }
+    .grid .short-name { display: none; }
     .grid thead th.now-hour { color: var(--accent); font-weight: 700; }
     .grid th:first-child {
       position: sticky;
@@ -374,7 +417,7 @@
     .feedback-trip-details { color: var(--ink-muted); }
 
     /* Estatísticas */
-    #manager-stats-panel h4 { margin: var(--s6) 0 var(--s3); font-size: var(--fs-sm); }
+    #manager-stats-panel h3 { margin: var(--s6) 0 var(--s3); font-size: var(--fs-sm); }
     .stats-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: var(--s3); margin-top: var(--s4); }
     .stats-card { display: grid; gap: var(--s1); align-content: start; padding: var(--s4); border: 1px solid var(--line); border-radius: var(--r-field); background: var(--surface-2); }
     .stats-card span { color: var(--ink-muted); font-size: var(--fs-xs); }
@@ -415,7 +458,7 @@
     dialog::backdrop { background: rgba(20, 16, 17, .5); }
     @keyframes dialog-in { from { opacity: 0; transform: translateY(8px) scale(.98); } }
     dialog form { display: grid; gap: var(--s3); }
-    dialog h4 { font-size: var(--fs-lg); }
+    dialog h3 { font-size: var(--fs-lg); }
     .dialog-actions, .stats-export-dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--s2); margin-top: var(--s3); }
     .summary-list { display: grid; grid-template-columns: auto 1fr; gap: var(--s1) var(--s4); margin: 0; }
     .summary-list dt { color: var(--ink-muted); font-size: var(--fs-xs); align-self: center; }
@@ -445,12 +488,21 @@
       .panel { padding: var(--s4); }
       .welcome h1 { font-size: var(--fs-xl); }
       .brand span span { display: none; }
+      .brand { gap: var(--s2); font-size: var(--fs-md); }
+      .header-tools, .session { gap: var(--s2); }
+      .session-user strong { max-width: 26vw; }
+      .role-badge { display: none; }
       .trip { grid-template-columns: 84px minmax(0, 1fr); gap: var(--s2) var(--s3); }
       .trip > .badge { grid-column: 2; justify-self: start; }
       .trip-actions { grid-column: 1 / -1; justify-content: stretch; }
       .trip-actions button { flex: 1; }
-      .grid th:first-child { width: 104px; }
-      .grid .cell, .grid td { min-width: 30px; }
+      .grid th:first-child { width: 88px; }
+      .grid .full-name { display: none; }
+      .grid .short-name { display: inline; }
+      .grid th, .grid td { height: 44px; }
+      .grid .cell, .grid td { min-width: 36px; }
+      button.small { min-height: var(--tap); }
+      details.filters summary { padding: 12px 10px; }
       .dialog-actions button, .stats-export-dialog-actions button { flex: 1; }
     }
 
@@ -474,15 +526,21 @@
   <header class="app-header">
     <div class="app-header-inner">
       <a class="brand" href="./" aria-label="RoboTaxi Campus, início">
-        <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--accent)"/><circle cx="16" cy="16" r="7.5" fill="none" stroke="var(--on-accent)" stroke-width="2.5"/><circle cx="16" cy="16" r="2.6" fill="var(--on-accent)"/></svg>
+        <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#fff"/><circle cx="16" cy="16" r="7.5" fill="none" stroke="#8f2d3d" stroke-width="2.5"/><circle cx="16" cy="16" r="2.6" fill="#8f2d3d"/></svg>
         <span>RoboTaxi <span>Campus</span></span>
       </a>
+      <div class="header-tools">
+      <button class="secondary small icon theme-toggle" type="button" onclick="toggleTheme()" aria-label="Alternar entre tema claro e escuro" title="Tema claro/escuro">
+        <svg class="to-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <svg class="to-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
       <div id="session" class="session hidden">
         <div class="session-user">
           <strong id="user-email"></strong>
           <span id="user-role" class="role-badge"></span>
         </div>
         <button class="secondary small" type="button" onclick="logout()">Sair</button>
+      </div>
       </div>
     </div>
   </header>
@@ -494,7 +552,7 @@
       <p class="auth-sub">Reserva um táxi autónomo para te deslocares no campus.</p>
       <form onsubmit="submitAuth(event)" novalidate>
         <label class="field signup-only hidden" for="name">Nome
-          <input type="text" id="name" autocomplete="name">
+          <input type="text" id="name" autocomplete="name" maxlength="80">
         </label>
         <label class="field" for="email">E-mail
           <input type="email" id="email" autocomplete="email" required>
@@ -643,7 +701,7 @@
         <ul id="my-reservations" class="trip-list"></ul>
         <dialog id="feedback-dialog" class="feedback-dialog" aria-labelledby="feedback-title">
           <form method="dialog">
-            <h4 id="feedback-title">Avaliar viagem</h4>
+            <h3 id="feedback-title">Avaliar viagem</h3>
             <p id="feedback-trip-details" class="feedback-trip-details"></p>
             <label class="field" for="feedback-rating">Classificação
               <select id="feedback-rating" required>
@@ -707,12 +765,12 @@
         <div id="fleet" class="fleet-grid"></div>
         <dialog id="vehicle-dialog" aria-labelledby="vehicle-dialog-title">
           <form onsubmit="event.preventDefault(); saveVehicle()" novalidate>
-            <h4 id="vehicle-dialog-title">Novo veículo</h4>
+            <h3 id="vehicle-dialog-title">Novo veículo</h3>
             <label class="field" for="v-id">ID
               <input id="v-id" placeholder="ex.: taxi_07" autocomplete="off">
             </label>
             <label class="field" for="v-name">Nome
-              <input id="v-name" placeholder="ex.: RoboTaxi Eta" autocomplete="off">
+              <input id="v-name" placeholder="ex.: RoboTaxi Eta" autocomplete="off" maxlength="60">
             </label>
             <label class="field" for="v-status">Estado
               <select id="v-status">
@@ -792,23 +850,23 @@
             <small>Com base na frota incluída no filtro.</small>
           </article>
         </div>
-        <h4>Reservas ao longo do tempo</h4>
+        <h3>Reservas ao longo do tempo</h3>
         <div id="stats-trend-chart" class="stats-chart" aria-live="polite"></div>
         <div class="stats-breakdown-grid">
           <section>
-            <h4>Procura por dia da semana</h4>
+            <h3>Procura por dia da semana</h3>
             <div id="stats-weekday-chart" class="stats-bar-list"></div>
           </section>
           <section>
-            <h4>Procura por hora</h4>
+            <h3>Procura por hora</h3>
             <div id="stats-hour-chart" class="stats-bar-list"></div>
           </section>
           <section>
-            <h4>Reservas por táxi</h4>
+            <h3>Reservas por táxi</h3>
             <div id="stats-taxi-chart" class="stats-bar-list"></div>
           </section>
         </div>
-        <h4>Resumo por táxi</h4>
+        <h3>Resumo por táxi</h3>
         <div class="stats-taxi-summary">
           <table>
             <thead><tr><th>Táxi</th><th>Total</th><th>Reservadas</th><th>Em curso</th><th>Concluídas</th></tr></thead>
@@ -818,7 +876,7 @@
         <small class="stats-note">A série temporal agrupa por dia, semana ou mês conforme o intervalo. As reservas canceladas não aparecem porque são removidas do sistema.</small>
         <dialog id="stats-export-dialog" class="stats-export-dialog" aria-labelledby="stats-export-title">
           <form method="dialog">
-            <h4 id="stats-export-title">Exportar estatísticas</h4>
+            <h3 id="stats-export-title">Exportar estatísticas</h3>
             <label class="field" for="stats-export-format">Formato
               <select id="stats-export-format">
                 <option value="pdf">PDF · relatório com gráfico e tabelas</option>
@@ -842,7 +900,7 @@
   <!-- Confirmações (reservar, cancelar) no estilo da app, em vez do confirm() do browser -->
   <dialog id="confirm-dialog" aria-labelledby="confirm-title">
     <form method="dialog">
-      <h4 id="confirm-title"></h4>
+      <h3 id="confirm-title"></h3>
       <div id="confirm-body"></div>
       <div class="dialog-actions">
         <button class="secondary" type="submit" value="cancel">Voltar</button>

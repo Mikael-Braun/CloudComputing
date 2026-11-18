@@ -8,7 +8,7 @@
 ![Firestore](https://img.shields.io/badge/Cloud_Firestore-NoSQL-FF6F00?logo=firebase&logoColor=white)
 ![JavaScript](https://img.shields.io/badge/JavaScript-Vanilla-F7DF1E?logo=javascript&logoColor=black)
 ![GitHub Actions](https://img.shields.io/badge/CI%2FCD-GitHub_Actions-2088FF?logo=githubactions&logoColor=white)
-![Testes](https://img.shields.io/badge/Security_Rules-39_testes-22c55e)
+![Testes](https://img.shields.io/badge/Security_Rules-50_testes-22c55e)
 
 🌐 **[cn-robottaxi.web.app](https://cn-robottaxi.web.app)** · Computação em Nuvem · ISLA Gaia · Grupo B
 
@@ -113,7 +113,7 @@ Depois abre **http://localhost:5000** e entra com uma das contas de [`tests/seed
 
 | Comando | O que faz |
 | --- | --- |
-| `npm test` | Corre os 39 testes das Security Rules no emulador |
+| `npm test` | Corre os 50 testes das Security Rules no emulador |
 | `npm run serve` | Arranca os emuladores e serve a app em `localhost:5000` |
 | `npm run seed` | Carrega dados de teste (com `serve` a correr) |
 
@@ -151,22 +151,39 @@ As regras em [`firestore.rules`](firestore.rules) garantem as regras de negócio
 | 🗃️ **Remoção lógica** | Veículos nunca são apagados: passam a `inactive` |
 | 📧 **E-mail confirmado** | Ao criar conta é enviado um link; até o confirmar, `request.auth.token.email_verified` é falso e as regras recusam tudo |
 | 🔒 **Só o gestor gere a frota** | Escrita em `vehicles` e mudança de estado das viagens restritas a `manager` |
+| 🕵️ **Reservas privadas** | Só o próprio passageiro e o gestor leem `reservations`; a grelha de ocupação lê `slots`, que guarda apenas veículo, data e hora |
+| 🔗 **Reserva e bloco juntos** | `existsAfter()` obriga a criar e a apagar a reserva e o seu bloco público no mesmo batch |
+| 🗓️ **Até 30 dias à frente** | Datas mais distantes são recusadas, para ninguém bloquear a frota |
+| 🧹 **Campos validados** | Nome até 80 caracteres, e-mail igual ao da conta, recolha e destino da lista do campus, `createdAt` = hora do servidor |
+| 📚 **Histórico protegido** | Nem o gestor apaga viagens concluídas |
 
 ### 🧪 Testes
 
-Os [39 testes](tests/rules.test.js) correm no **Firebase Emulator** com `@firebase/rules-unit-testing` e cobrem cada regra acima, nos casos permitidos e nos casos recusados.
+Os [50 testes](tests/rules.test.js) correm no **Firebase Emulator** com `@firebase/rules-unit-testing` e cobrem cada regra acima, nos casos permitidos e nos casos recusados.
 
 ```text
 ✔ não há sobreposição: segundo passageiro no mesmo bloco falha
 ✔ utilizador não se autopromove a manager ao criar
 ✔ passageiro não cancela viagem já iniciada
 ✔ reserva com data passada é rejeitada
-  … 39 testes, 0 falhas
+  … 50 testes, 0 falhas
 ```
+
+### 🧱 Cabeçalhos de segurança
+
+O Hosting envia `Content-Security-Policy`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy` e `Permissions-Policy` (ver [`firebase.json`](firebase.json)).
+
+### ⚠️ Limitações conhecidas
+
+- Não há limite de reservas por utilizador: as Security Rules não contam documentos, seria preciso um contador ou uma Cloud Function (plano Blaze).
+- A CSP ainda permite `'unsafe-inline'`, porque a interface usa `onclick` no HTML.
+- O registo indica se um e-mail já tem conta; a proteção contra enumeração ativa-se na consola do Firebase Authentication.
 
 ---
 
 ## 🗄️ Modelo de dados
+
+`reservations` tem dados pessoais (quem, de onde, para onde) e só é lida pelo próprio passageiro e pelo gestor. `slots` é a ocupação pública: um documento por bloco reservado, sem dados pessoais, que alimenta a grelha.
 
 ```mermaid
 erDiagram
@@ -196,6 +213,13 @@ erDiagram
         string timeSlot "HH:MM"
         string status "booked | in_progress | completed"
     }
+    reservations ||--|| slots : "ocupa"
+    slots {
+        string reservationId PK "igual ao da reserva"
+        string vehicleId
+        string date
+        string timeSlot
+    }
 ```
 
 ---
@@ -205,7 +229,7 @@ erDiagram
 Cada **push para `main`** dispara o workflow [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml):
 
 ```text
-push main ──► npm ci ──► npm test (39 testes) ──► app.js?v=<commit> ──► firebase deploy (Hosting + Rules)
+push main ──► npm ci ──► npm test (50 testes) ──► app.js?v=<commit> ──► firebase deploy (Hosting + Rules)
                               │
                               └── ❌ se algum teste falhar, nada é publicado
 ```
@@ -243,7 +267,7 @@ Project/
 │   ├── index.html            ← interface (passageiro + gestor)
 │   └── app.js                ← lógica e ligação ao Firebase
 └── 🧪 tests/
-    ├── rules.test.js         ← 39 testes das Security Rules
+    ├── rules.test.js         ← 50 testes das Security Rules
     └── seed.js               ← dados de teste para os emuladores
 ```
 
