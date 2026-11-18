@@ -153,6 +153,14 @@ test("gestor não usa estados inválidos nem muda outros campos", async () => {
   await assertFails(updateDoc(resRef(gestor(), reservation("ana")), { status: "voando" }));
   await assertFails(updateDoc(resRef(gestor(), reservation("ana")), { timeSlot: "15:00" }));
 });
+test("estado da viagem só anda para a frente", async () => {
+  await setDoc(resRef(ana(), reservation("ana")), reservation("ana"));
+  await assertFails(updateDoc(resRef(gestor(), reservation("ana")), { status: "completed" }));
+  await updateDoc(resRef(gestor(), reservation("ana")), { status: "in_progress" });
+  await assertFails(updateDoc(resRef(gestor(), reservation("ana")), { status: "booked" }));
+  await updateDoc(resRef(gestor(), reservation("ana")), { status: "completed" });
+  await assertFails(updateDoc(resRef(gestor(), reservation("ana")), { status: "in_progress" }));
+});
 test("passageiro não cancela viagem já iniciada", async () => {
   await setDoc(resRef(ana(), reservation("ana")), reservation("ana"));
   await updateDoc(resRef(gestor(), reservation("ana")), { status: "in_progress" });

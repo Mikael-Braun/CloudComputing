@@ -73,10 +73,12 @@ service cloud.firestore {
         && !exists(/databases/$(database)/documents/reservations/$(reservationId))
         && get(/databases/$(database)/documents/vehicles/$(request.resource.data.vehicleId)).data.status == 'active'
         && get(/databases/$(database)/documents/vehicles/$(request.resource.data.vehicleId)).data.batteryLevel >= minBattery();
-      // Simulação: só o gestor avança o estado da viagem; nada mais muda.
+      // Simulação: só o gestor avança o estado da viagem, sempre para a frente
+      // (Reservada → Em curso → Concluída); nada mais muda.
       allow update: if isManager()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
-        && request.resource.data.status in ['booked', 'in_progress', 'completed'];
+        && ((resource.data.status == 'booked' && request.resource.data.status == 'in_progress')
+          || (resource.data.status == 'in_progress' && request.resource.data.status == 'completed'));
       // Cancelar = apagar, o que liberta o bloco. O passageiro só cancela antes de a viagem começar.
       allow delete: if signedIn()
         && ((resource.data.userId == request.auth.uid && resource.data.status == 'booked') || isManager());
